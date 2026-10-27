@@ -4251,7 +4251,7 @@ h1{font-size:clamp(29px,3vw,42px);line-height:1.08;letter-spacing:-.065em;margin
 
 
 /* Revision 11: each overdue revision is a compact standalone card matching the supplied reference. */
-.overdue-individual-card{position:relative;background:var(--surface,#fff);border:1px solid var(--line,#e2e8f0);border-radius:18px;padding:12px 12px 9px;margin:0 0 10px;box-shadow:0 1px 3px rgba(15,23,42,.035);min-width:0;box-sizing:border-box;overflow:visible}
+.overdue-individual-card{position:relative;background:var(--surface,#fff);border:1px solid var(--line,#e2e8f0);border-radius:18px;padding:12px 12px 9px;margin:0 0 10px;box-shadow:0 1px 3px rgba(15,23,42,.035);min-width:0;box-sizing:border-box;overflow:visible;cursor:pointer}
 .overdue-individual-top{display:flex;align-items:center;gap:10px;min-width:0}
 .overdue-gap-large{display:flex;align-items:center;justify-content:center;flex:none;width:42px;height:42px;border:1px solid #e5cef9;border-radius:11px;background:#f7efff;color:#7e22ce;font-size:clamp(15px,4vw,20px);font-weight:850;letter-spacing:-.04em}
 .overdue-individual-main{min-width:0;flex:1;align-self:center}
@@ -6224,6 +6224,7 @@ function revisionDatesThroughEnd(startDate,schedule,firstDate='',endDate=''){
   return dates;
 }
 function buildRevisionDates(startDate,schedule,count=40,firstDate=''){
+  schedule=schedule||{}; // defensive: a topic without a schedule must not throw and blank the page
   if(!startDate)return [];
   const result=[];let cursor=startDate;
   if(firstDate&&firstDate>=startDate)cursor=firstDate;
@@ -6515,7 +6516,7 @@ function renderOverduePage(){
     const secs=getRevisionElapsedSeconds(revision);
     const elapsed=secs>0?`${secs<60?secs+'s':Math.round(secs/60)+'m'} elapsed`:'Not started';
     const subjectInitials=(topic.subject||'').trim().split(/\s+/).filter(Boolean).map(part=>part[0]).join('').slice(0,2).toUpperCase()||'•';
-    return `<article class="overdue-individual-card">
+    return `<article class="overdue-individual-card" role="button" tabindex="0" onclick="openTopicDetail('${topic.id}','${revision.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openTopicDetail('${topic.id}','${revision.id}')}">
       <div class="overdue-individual-top">
         <div class="overdue-subject-mark ${markClass}" aria-hidden="true">${escapeHTML(subjectInitials)}</div>
         <div class="overdue-individual-main">

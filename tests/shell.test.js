@@ -224,6 +224,49 @@ const appState = (win) => win.eval('state');
   check('time is NOT stored in the boolean flag channel',
     h.bridge.__flags['recall_dailySummaryTime'] !== true, 'not true', h.bridge.__flags['recall_dailySummaryTime']);
 
+  // -------------------------------------------------- overdue page opens --
+  suite('Overdue page cards open the topic detail');
+  // Note: deliberately NO schedule block - a topic without one must not make
+  // renderOverduePage() throw (buildRevisionDates used to dereference
+  // schedule.intervals unguarded and blanked the whole page).
+  appState(win).topics.push({
+    id: 't_over_only', name: 'Overdue Only Topic', subject: 'Polity', difficulty: 'Medium',
+    duration: 15, blocked: false, notes: [],
+    revisions: [{ id: 'r_over_only', dueDate: '2026-10-20', completedAt: null, status: 'overdue' }]
+  });
+  win.eval('renderOverduePage()');
+  const cardCount = win.document.querySelectorAll('#overdueList .overdue-individual-card').length;
+  check('overdue page renders without throwing (no-schedule topic)', cardCount > 0, '>0 cards', cardCount);
+  win.eval('renderOverduePage()');
+  const overCard = win.document.querySelector('#overdueList .overdue-individual-card');
+  check('overdue card rendered', !!overCard, true, !!overCard);
+  if (overCard) {
+    check('overdue card is focusable (role=button, tabindex)',
+      overCard.getAttribute('role') === 'button' && overCard.getAttribute('tabindex') === '0',
+      'button/0', overCard.getAttribute('role') + '/' + overCard.getAttribute('tabindex'));
+    overCard.click();
+    const name = win.document.getElementById('detailTopicName');
+    check('clicking an overdue card opens its detail',
+      !!name && name.textContent === 'Overdue Only Topic', 'Overdue Only Topic',
+      name ? name.textContent : 'no detail element');
+    const moreBtn = win.document.querySelector('#overdueList .overdue-more-btn');
+    if (moreBtn) {
+      const nameEl = win.document.getElementById('detailTopicName');
+      if (nameEl) nameEl.textContent = ''; // reset so we can see what the next click opens
+      moreBtn.click();
+      const menu = win.document.querySelector('#overdueList .overdue-popup-menu');
+      check('the ⋮ menu still opens (and does not fall through to the card)',
+        !!menu && menu.hidden === false, 'menu open', menu ? 'hidden=' + menu.hidden : 'no menu');
+      const nameAfter = win.document.getElementById('detailTopicName');
+      check('⋮ button does not also open the detail',
+        !nameAfter || nameAfter.textContent !== 'Overdue Only Topic', 'detail untouched',
+        nameAfter ? nameAfter.textContent : '-');
+    } else {
+      check('overdue card has a ⋮ menu button', false, true, false);
+    }
+    check('no page errors after overdue interactions', h.pageErrors.length === 0, 0, h.pageErrors.slice(0, 2).join(' | '));
+  }
+
   // -------------------------------------------------------------- summary --
   console.log('\n=== summary ===');
   const fails = results.filter(r => !r.pass);
