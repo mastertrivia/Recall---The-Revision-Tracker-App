@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Sampled from Recall App Logo .png so the adaptive-icon mask never
+         reveals a colour that clashes with the mark itself. -->
+    <color name="recall_icon_background">#0B0E1B</color>
+</resources>

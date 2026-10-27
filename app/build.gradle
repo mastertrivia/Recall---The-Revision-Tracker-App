@@ -1,0 +1,67 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+// Permanent signing keystore. GitHub Actions generates this file on the
+// first build and commits it back to the repo. As long as this file and
+// the applicationId never change, every new APK installs as an update
+// and your data survives. Keep the repository PRIVATE.
+def shellKeystore = rootProject.file('signing/release.keystore')
+
+android {
+    namespace 'com.goaltracker.shell'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.mastertrivia.recall"
+        minSdk 26          // Android 8.0
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+
+    signingConfigs {
+        if (shellKeystore.exists()) {
+            release {
+                storeFile shellKeystore
+                storePassword 'goaltracker-shell'
+                keyAlias 'goaltracker'
+                keyPassword 'goaltracker-shell'
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            // Keep it simple for a beginner: no code shrinking.
+            minifyEnabled false
+            // Sign with the permanent key when the keystore is present.
+            // Without it (e.g. a fresh AndroidIDE checkout before the first
+            // CI run) the build still works, just unsigned.
+            if (shellKeystore.exists()) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    // WebViewAssetLoader lives here - serves filesDir over a stable https:// origin
+    implementation 'androidx.webkit:webkit:1.8.0'
+    testImplementation 'junit:junit:4.13.2'
+    // Local unit tests need the REAL org.json — android.jar only ships stubs
+    // whose methods throw "not mocked" (BackupValidatorTest parses JSON).
+    testImplementation 'org.json:json:20240303'
+}

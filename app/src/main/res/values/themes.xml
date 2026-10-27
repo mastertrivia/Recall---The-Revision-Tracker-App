@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- v4.11: NoActionBar - the green top bar (title + three-dot menu) was removed
+         so the HTML app starts at the top of the screen. Every menu action moved to
+         Settings -> Android Shell Settings -> App & Data inside the HTML. -->
+    <style name="Theme.GoalTracker" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="colorPrimary">#1B5E4A</item>
+        <item name="colorPrimaryDark">#124636</item>
+        <item name="colorAccent">#E8A33D</item>
+    </style>
+</resources>

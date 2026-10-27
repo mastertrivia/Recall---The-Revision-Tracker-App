@@ -1,0 +1,218 @@
+⭐️ Goal Tracker app - Goal Section: Philosophy, Logics & Formulas
+
+━━━━━━━━━━━━━━━━━━━━━━
+🔴 Card -1
+━━━━━━━━━━━━━━━━━━━━━━
+
+👉 Goal Name 
+User can keep any Goal Nam
+
+-----
+
+👉 Starting Date
+Ye Campaign ka pehla Study Day hai. Isi date se saare Campaign calculations (Progress, Status, Required Now, Streak, Projected Finish, etc.) start hote hain.
+
+-----
+
+👉 Total Required
+Ye poore Campaign ke Total Study Hours hain. Ye automatically calculate hote hain:
+Campaign Days × Daily Study Target = Total Required Hours.
+
+----
+
+👉 Deadline
+Ye Campaign ka Final Study Day hai. Goal ko isi date tak complete karna target hai. Status Card aur Projected Finish isi date ko reference maan kar calculate hote hain.
+
+
+━━━━━━━━━━━━━━━━━━━━━━
+🔴 Card - 2
+━━━━━━━━━━━━━━━━━━━━━━
+
+👉 Today's Progress
+Ye sirf aaj ke Study Day ki progress dikhata hai. Isme aaj complete kiye gaye Study Hours aur Daily Target compare hote hain. Neeche "Finishing By" live estimate dikhata hai ki current pace ke hisaab se aaj ka target kis time tak complete ho sakta hai.   (***Finishing By explained later)
+
+-----
+
+👉 Goal Streak
+
+Goal Streak batata hai ki kitne consecutive Study Days tumne minimum Goal Hours complete kiye hain. Ye value Daily Target par depend nahi karti. Minimum hours Settings me alag se set kiye ja sakte hain.
+
+----
+
+
+
+━━━━━━━━━━━━━━━━━━━━━━
+🔴 Card 3
+━━━━━━━━━━━━━━━━━━━━━━
+
+👉 Campaign Progress
+Ye poore Campaign ki overall progress dikhata hai. Campaign Start se abhi tak jitne Study Hours complete hue hain, unhe Total Required Hours se compare karke percentage calculate ki jaati hai.
+
+• Expected Till Today = Campaign Start se lekar aaj tak jitne Study Hours ideally complete ho jane chahiye the.
+(Ye value "Campaign Progress" card ki last line me dikhai jaati hai → "Expected Till Today")
+
+━━━━━━━━━━━━━━━━━━━━━━
+🔴 Card 4
+━━━━━━━━━━━━━━━━━━━━━━
+
+#  Ye card sirf ek calculation card nahi hai......Ye poore Campaign ka Live Motivation Engine hai.......Iska purpose sirf numbers dikhana nahi hai.....Iska purpose hai user ko har din apne Campaign Target ko chase karne ke liye motivate karna.
+
+---------------------------------------------
+👉 1. Status (Behind / On Track / Ahead)
+
+Ye card sirf ek simple comparison karta hai. Ye sirf do values compare karta hai:-
+
+a) Campaign Start se lekar abhi tak kitne Study Hours complete ho jane chahiye the (Expected Progress).
+
+b) Campaign Start se lekar abhi tak actually kitne Study Hours complete hue hain (Your Overall Progress).
+
+Bas in dono ka difference hi "Status" hai.
+
+Understand the Terms:
+
+• Expected upto today*** (explained in card 3)
+
+• Your Overall Progress = Campaign Start Date se lekar right now tak ke total Study Hours jo actually complete hue hain.
+
+Understand by Example
+
+Suppose, Expected upto today = 140 Hours.
+
+• Case 1) Actual = 120 Hours
+ (120 < 140 = -20)
+Status = Behind by 20 Hours.
+
+• Case 2)  Actual = 140 Hour 
+(140 = 140 = 0)
+Status = On Track.
+
+• Case 3) Actual = 142 Hours
+(142 > 140 = +2)
+Status = Ahead by 2 Hours.
+
+
+### Core Philosophy
+Jitna Expected aur Actual ke beech difference hoga, utna hi tumhara actual Campaign Backlog (Behind) ya Campaign Lead (Ahead) hoga.
+---------------------------------------------
+
+
+👉 Sabse Important Baat & Philosophy Behind It
+
+Bahut log pehli baar dekhkar confuse honge...
+"Kal raat tak to main On Track tha... aaj subah uthte hi Behind kyun dikha raha hai? How?"
+Actually, ye koi bug nahi hai. Ye intentionally design kiya gaya behaviour hai. Jaise hi naya Study Day start hota hai (ie. Wake-up Time ke baad), poore din ka Study Target ek hi baar tumhari responsibility ban jata hai. Agar Daily Target 14 Hours hai, to Wake-up ke moment par Expected Hours me poore 14 Hours add ho jaate hain (ie. aaj ke poore Study Hours temporarily backlog ki tarah dikhne lagenge). Ab poora din tumhare paas hai un 14 Hours ko recover karne ka. Isi wajah se subah tum Behind dekhoge aur naturally tumhare andar chase karne ki feeling aayegi.
+
+Tum sochoge: "Main 14 Hours Behind hoon... lekin mere paas aaj bhi 16 Hours available hain. Agar main subah se lekar raat tak honestly padhai karun, to main dobara On Track ho sakta hoon."
+Yahi is engine ka sabse important psychological feature hai. Ye user ko continuously push karta hai: "Aaj ka Target complete karo... tum phir se On Track ho jaoge."
+Aur agar mann kare, to raat me Extra Study Timer ka use karke 30–60 minutes extra padh lena. Tab tumhe rare GOLDEN Ahead of Time card dekhne ko milega.
+
+---------------------------------------------
+👉 Best Part = Ye poora Engine LIVE hai
+
+Aaj ke Expected Hours din bhar continuously increase nahi hote. Wo sirf ek hi baar Wake-up Time par add kiye jaate hain. Lekin tumhare Actual Study Hours continuously badhte rehte hain. Har Study Session, Har Pomodoro aur Har Minute tumhara backlog continuously kam hota chala jata hai. Isi wajah se poora Status Engine LIVE hai. Tum jitna study karoge, utna Expected aur Actual ke beech ka gap continuously kam hota jayega. Agar raat tak poora Daily Target complete kar diya, to tum phir se On Track dekhoge. Aur agar Extra Study Timer se aur bhi study kar li, to tum rare GOLDEN Ahead of Time card bhi dekh sakte ho. Ye intentionally ek reward feeling create karta hai—pehle engine tumhe chase karwata hai, phir consistency maintain karne par reward bhi deta hai.
+
+-----
+##### My Personal Suggestion :- 
+Bhai, roj bas itni koshish karo ki sone se pehle kam se kam On Track wala card dekhne ko mil jaaye. Agar ye aadat ban gayi, to consistency apne aap build ho jayegi... aur life me kabhi regret nahi hoga.
+
+
+
+---------------------------------------------
+👉 2. "Required Now" Section of Status Card
+
+Ye card Status se bilkul alag purpose serve karta hai. Ye ye nahi batata ki tum kitna peeche ho. Ye sirf ek simple question ka answer deta hai: "Agar Deadline tak Campaign exactly time par complete karna hai, to ab har din kitna padhna padega?" Ye ek Catch-up Planner hai. Sabse pehle current Backlog dekha jata hai, fir us Backlog ko remaining Campaign Days me equally divide kar diya jata hai. Aaj ka din bhi remaining days me include hota hai, kyunki aaj bhi tumhare paas study karne ka poora chance hai.
+
+Simple Analogy: Teacher roz 5 classes leta hai. Tum 20 classes miss kar chuke ho aur School 10 din baad band hone wala hai. Teacher kahega, "Roz ki 5 classes to attend karni hi hongi, lekin miss hui 20 classes bhi thodi-thodi karke roz complete karni hongi. Ek kaam karo, roz +2 classes extra attend kar lo." Bas Required Now bhi exactly isi philosophy par kaam karta hai.
+
+Ye calculation bhi poori tarah LIVE hai. Jaise-jaise tum study karoge, Backlog continuously kam hota jayega aur Required Now bhi automatically kam hota jayega. Agar kisi wajah se study nahi ho paayi, Backlog badhega aur Required Now bhi automatically increase ho jayega. Yaani ye line hamesha tumhari current situation ke hisaab se LIVE update hoti rehti hai.
+
+• Conclusion: Maan lo kisi din ghar me Marriage, Function ya Emergency aa gayi aur us din bilkul study nahi ho paayi. To disappoint mat hona. Engine us din ke Backlog ko remaining Campaign Days me equally distribute kar dega. Isliye ek hi din bahut zyada padhne ki zarurat nahi padegi, bas remaining dino me thoda-thoda extra padhna hoga. Agar normal schedule already full hai, to us extra study ko "Extra Study Timer" ki help se complete kiya ja sakta hai. Par roj kitna extra padhna padega? Wahi line batati hai, jaise "26 Minutes More Every Day" ya "12 Minutes Less Every Day". Isi liye Required Now ka purpose sirf calculation dikhana nahi, balki user ko ek realistic aur psychologically comfortable Catch-up Plan dena hai.
+
+
+---------------------------------------------------------
+👉 3. Projected Finish
+
+Ye card planning nahi karta, sirf prediction deta hai. Ye assume karta hai: "Agar aaj se tum sirf apna Original Daily Target hi follow karoge (koi extra study ya catch-up nahi karoge), to Campaign kis din complete hoga?" Example: Backlog = 45 Hours aur Daily Target = 14 Hours.
+
+Engine sochega: Day 1 = 14, Day 2 = 14, Day 3 = 14 (Total = 42), ab sirf 3 Hours remaining hain. Isliye Campaign actually Deadline ke 4th day complete hoga. Lekin sirf itna batana kaafi nahi hai. User naturally sochega, "Final day par kya mujhe poora din padhna padega?" Isi question ka answer deti hai "Final Day Study" line. Is example me Final Day Study ≈ 3 Hours dikhaya jayega. Matlab Campaign us din complete hoga, lekin us final day sirf lagbhag 3 ghante ki study required hogi, poora din nahi. Ye prediction intentionally simple rakha gaya hai aur hamesha Original Daily Target ko base maan kar calculate kiya jata hai.
+
+
+---------------------------------------------------------
+
+👉 Today's Progress → "Finishing By"
+
+Ye engine sirf aaj ke remaining Study Target par based hai. Iska kaam sirf itna batana hai ki aaj ka remaining target kis time tak complete ho jayega. Engine Current Time se Study Day End tak ka remaining time nikalta hai aur usme se saari remaining non-study activities (Routine, Health, Meals, Breaks, etc.) minus karke Pure Study Time Available calculate karta hai. Agar Pure Study Time Available ≥ Today's Remaining Study Target, to exact "Finishing By" time show hota hai. Agar available study time kam ho, to time ki jagah capacity message show hota hai (jaise "Only 12 out of 14 hours can be completed today."). Ye calculation poori tarah LIVE hai.
+
+
+-----------------------------------------------------------
+👉 On Time / Delay
+
+Ye bhi isi Finishing By philosophy ko use karta hai, lekin aaj ke target ki jagah Total Campaign Backlog (Behind by X Hours) ko use karta hai. Engine wahi Pure Study Time Available compare karta hai jo Finishing By engine calculate karta hai. Agar Pure Study Time Available ≥ Total Campaign Backlog, to 🟢 On Time show hota hai. Agar Pure Study Time Available < Total Campaign Backlog, to 🔴 Delayed show hota hai. Ye bhi poori tarah LIVE hai aur har study session, completed activity aur time ke saath continuously update hota rehta hai.
+
+
+
+━━━━━━━━━━━━━━━━━━━━━━
+👉 Extra Study Timer
+━━━━━━━━━━━━━━━━━━━━━━
+Ye button sirf Sleep Time ke baad available hota hai. Iska purpose normal Daily Target ke baad ki gayi extra study ko separately record karna hai. Ye extra study bhi Campaign Progress ko increase karti hai aur user ko backlog recover karne ya Ahead of Time pahunchne me help karti hai.
+
+
+━━━━━━━━━━━━━━━━━━━━━━
+🟢 Quick Formula Examples
+━━━━━━━━━━━━━━━━━━━━━━
+
+• Starting Date
+Example: Campaign starts on 1 July → All Goal calculations start from 1 July.
+
+• Deadline
+Example: Deadline = 31 July → Goal should be completed by 31 July.
+
+• Total Required
+Example: 30 Days × 14h = 420 Total Required Hours.
+
+• Today's Progress
+Example: Studied 8h today, Target 14h → Today's Progress = 8/14 completed.
+
+• Goal Streak (manually set hour from settings for streak maintenance)
+Example: Minimum Goal = 8h/day.
+Day 1 = 9h ✓
+Day 2 = 8h ✓
+Day 3 = 6h ✗
+Streak = 0.
+
+• Campaign Progress
+Example: Studied 140h since Start, Total Required = 420h → Campaign Progress = 140/420 = 33%.
+
+• Expected Till Today
+Example: 10 Study Days × 14h = 140h should be completed by today.
+
+• Status
+Example: Expected = 140h, Actual = 126h → Behind by 14h.
+similarly can be "On Track" & "Ahead"
+
+• Required Now
+Example: total backlog equally splitting in total remaining days.
+
+• Projected Finish
+Example: Remaining = 45h, Daily Target = 14h/day → 45 = 14+14+14+3 → Finishes after 3 full days + ~3h on the final day.
+
+• Final Day Study
+Example: Remaining = 45h → 14 + 14 + 14 + 3 → Final Day Study = ~3h.
+
+• Finishing By
+Example:
+Remaining Study Today = 8h.
+Pure Study Time Available = 9h.
+8 ≤ 9 → Show Finishing By.
+8 > 6 → Show "Only 12 out of 14 hours can be completed today."
+
+• On Time / Delayed
+Example:
+Campaign Backlog = 10h.
+Pure Study Time Available = 12h.
+10 ≤ 12 → 🟢 On Time.
+10 > 8 → 🔴 Delayed.
+
+• Extra Study Timer
+Example: Studied 1h after Sleep Time → Counts as Extra Study and also increases Campaign Progress.
+

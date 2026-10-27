@@ -1,0 +1,21 @@
+{
+  "name": "recall-android-shell",
+  "version": "1.0.0",
+  "description": "Android wrapper (WebView shell) for the Recall revision studio HTML app.",
+  "private": true,
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "node tests/shell.test.js"
+  },
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@sinonjs/fake-timers": "^13.0.5",
+    "fake-indexeddb": "^6.2.6",
+    "jsdom": "^26.1.0",
+    "playwright": "^1.64.1"
+  }
+}

@@ -1,0 +1,69 @@
+<!-- ===== Recall × Android shell settings (injected into #page-settings) ===== -->
+
+<div class="card settings-card">
+  <h3>Android application</h3>
+  <p class="card-desc">Controls provided by the Recall Android wrapper. Your revision data is never touched by a refresh, an HTML update or a revert.</p>
+  <div class="settings-actions">
+    <button type="button" class="primary-btn" onclick="shell.refreshApp()">Refresh app</button>
+    <button type="button" class="secondary-btn" onclick="shell.installHtml()">Install new HTML</button>
+  </div>
+  <div class="settings-actions">
+    <button type="button" class="secondary-btn" onclick="shell.saveHtml()">Save current HTML</button>
+    <button type="button" class="secondary-btn" onclick="shell.revertHtml()">Revert to original HTML</button>
+  </div>
+  <div class="settings-actions">
+    <button type="button" class="danger-btn" onclick="shell.factoryReset()">Factory reset user data</button>
+  </div>
+  <div class="settings-actions" style="margin-top:6px">
+    <button type="button" class="secondary-btn" onclick="shell.systemCheck()">System check</button>
+    <span class="small-muted" id="shellBridgeStatus">Checking wrapper…</span>
+  </div>
+</div>
+
+<div class="card settings-card">
+  <h3>Display size</h3>
+  <p class="card-desc">Nine levels. Level 5 is the true normal size — exactly how the Recall interface was designed. Levels 1–4 are smaller, 6–9 are larger.</p>
+  <div class="field">
+    <label for="displaySizeLevels">LEVEL</label>
+    <div id="displaySizeLevels" class="display-levels" role="radiogroup" aria-label="Display size level"></div>
+    <small class="small-muted" id="displaySizeHint" aria-live="polite"></small>
+  </div>
+</div>
+
+<div class="card settings-card">
+  <h3>Notifications</h3>
+  <p class="card-desc">Native Android reminders computed from your actual revision schedule — not a second, competing calendar.</p>
+  <div class="switch-row">
+    <div class="switch-copy"><strong>Daily revision summary</strong><span id="dailySummaryCopy">Topics due today and the estimated time they need.</span></div>
+    <button type="button" class="switch" id="dailySummarySwitch" onclick="shell.toggleDailySummary()" aria-label="Toggle daily revision summary"><span></span></button>
+  </div>
+  <div class="field">
+    <label for="dailySummaryTime">DAILY REMINDER TIME</label>
+    <select id="dailySummaryTime" class="modal-input" onchange="shell.setDailySummaryTime(this.value)"></select>
+  </div>
+  <div class="switch-row">
+    <div class="switch-copy"><strong>Overdue reminder</strong><span id="overdueReminderCopy">A single heads-up about topics whose revision date has passed.</span></div>
+    <button type="button" class="switch" id="overdueReminderSwitch" onclick="shell.toggleOverdueReminder()" aria-label="Toggle overdue reminder"><span></span></button>
+  </div>
+  <div class="field">
+    <label for="overdueReminderTime">OVERDUE REMINDER TIME</label>
+    <select id="overdueReminderTime" class="modal-input" onchange="shell.setOverdueReminderTime(this.value)"></select>
+  </div>
+  <p class="helper" id="notificationPermissionStatus">Notification permission: checking…</p>
+</div>
+
+<div class="card settings-card">
+  <h3>Sound</h3>
+  <p class="card-desc">Short action-feedback sounds only — no alarm tones or music.</p>
+  <div class="switch-row">
+    <div class="switch-copy"><strong>Action sounds</strong><span>Plays a short confirmation when you mark a revision completed.</span></div>
+    <button type="button" class="switch" id="soundSwitch" onclick="shell.toggleSound()" aria-label="Toggle action sounds"><span></span></button>
+  </div>
+</div>
+
+<style id="recall-shell-settings-style">
+  .display-levels{display:flex;flex-wrap:wrap;gap:6px}
+  .display-levels button{min-width:34px;height:34px;padding:0 8px;border-radius:10px;border:1px solid var(--line-strong);background:var(--surface-2);color:var(--text);font-weight:800;font-size:12px;cursor:pointer}
+  .display-levels button.is-active{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+  .display-levels button.is-base{box-shadow:inset 0 0 0 1px var(--line-strong)}
+</style>

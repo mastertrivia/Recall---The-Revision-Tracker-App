@@ -1,0 +1,27 @@
+# Build output
+build/
+app/build/
+.gradle/
+
+# Local machine config (never commit)
+local.properties
+
+# Test dependencies and local run artifacts
+node_modules/
+artifacts/
+nohup.out
+
+# IDE noise
+.idea/
+*.iml
+.androidide/
+
+# IMPORTANT - these must stay COMMITTED, never ignore them:
+#   gradlew, gradlew.bat, gradle/wrapper/gradle-wrapper.jar
+#   signing/release.keystore
+
+# Local build artifacts (CI builds the signed release APK)
+*.apk
+
+# Local HTML backups (not part of the app)
+backups/
