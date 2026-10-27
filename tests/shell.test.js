@@ -31,6 +31,7 @@ const lastCall = (h, name, pred) => {
 const countCalls = (h, name, pred) => calls(h).filter((c) => c[0] === name && (!pred || pred(c))).length;
 /** top-level `let state` is not on window - read it through the page's own scope */
 const appState = (win) => win.eval('state');
+const renderSettingsUI = (win) => win.eval("(function(){try{renderBackupReminderSettings()}catch(e){}})()");
 
 (async () => {
   // ---------------------------------------------------------------- boot --
@@ -266,6 +267,110 @@ const appState = (win) => win.eval('state');
     }
     check('no page errors after overdue interactions', h.pageErrors.length === 0, 0, h.pageErrors.slice(0, 2).join(' | '));
   }
+
+  // ------------------------------------------- Export Backup Reminder --
+  suite('Export Backup Reminder');
+  const REM_KEY = 'recall_export_backup_reminder_v1';
+  const remBackdrop = () => win.document.getElementById('backupReminderBackdrop');
+  const setReminder = (o) => win.localStorage.setItem(REM_KEY, JSON.stringify(o));
+  const getReminder = () => JSON.parse(win.localStorage.getItem(REM_KEY) || 'null');
+
+  renderSettingsUI(win);
+  const dayBoxes = win.document.querySelectorAll('#backupReminderDays input[type=checkbox]');
+  check('settings renders 7 day checkboxes', dayBoxes.length === 7, 7, dayBoxes.length);
+  const remTimeSel = win.document.getElementById('backupReminderTime');
+  check('settings renders 24 time options', remTimeSel && remTimeSel.options.length === 24, 24, remTimeSel && remTimeSel.options.length);
+  const remCfg = JSON.parse(win.eval('JSON.stringify(getBackupReminderSettings())'));
+  check('defaults to Mon/Wed/Fri 09:00',
+    JSON.stringify(remCfg.days) === JSON.stringify([1, 3, 5]) && remCfg.time === 9,
+    '[1,3,5]@9', JSON.stringify(remCfg.days) + '@' + remCfg.time);
+
+  // Boot default (now = Tue 09:00, days Mon/Wed/Fri) -> must NOT show
+  win.eval('maybeShowBackupReminder()');
+  check('not shown on a non-selected day', !remBackdrop().classList.contains('open'), false, true);
+
+  // Today selected, no time gate -> shows once, cancel locked with 10s
+  const dow = win.eval('new Date().getDay()');
+  setReminder({ days: [dow], time: 0, lastShown: '' });
+  win.eval('maybeShowBackupReminder()');
+  check('shown on a selected day after the configured time', remBackdrop().classList.contains('open'), true, false);
+  const cancelBtn = win.document.getElementById('backupReminderCancelBtn');
+  const countEl = win.document.getElementById('backupReminderCountdown');
+  check('cancel starts disabled at (10s)', cancelBtn.disabled && countEl.textContent === '(10s)', 'disabled/(10s)',
+    (cancelBtn.disabled ? 'disabled' : 'enabled') + '/' + countEl.textContent);
+
+  // Outside tap must NOT dismiss
+  remBackdrop().dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+  check('tapping outside does not dismiss', remBackdrop().classList.contains('open'), true, false);
+  // Escape must NOT dismiss either (only the two buttons may)
+  win.document.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  check('Escape does not dismiss', remBackdrop().classList.contains('open'), true, false);
+  // Cancel is a no-op during the countdown
+  win.eval('cancelBackupReminder()');
+  check('cancel is a no-op during the countdown', remBackdrop().classList.contains('open'), true, false);
+  check('Export button is enabled from the start',
+    !win.document.querySelector('.backup-reminder-export').disabled, true, false);
+
+  // Second call in the same app day -> once per app day
+  win.eval('closeBackupReminder(); maybeShowBackupReminder()');
+  check('shown only once per app day', !remBackdrop().classList.contains('open'), false, true);
+
+  // Countdown ticks to zero and unlocks cancel
+  setReminder({ days: [dow], time: 0, lastShown: '' });
+  win.eval('maybeShowBackupReminder()');
+  await h.advance(10000, 1000);
+  check('countdown reaches (0s)', countEl.textContent === '(0s)', '(0s)', countEl.textContent);
+  check('cancel enabled after the countdown', !cancelBtn.disabled, true, cancelBtn.disabled);
+  win.eval('cancelBackupReminder()');
+  check('cancel dismisses after the countdown', !remBackdrop().classList.contains('open'), false, true);
+
+  // Time gate: not before the configured hour
+  setReminder({ days: [dow], time: 23, lastShown: '' });
+  win.eval('maybeShowBackupReminder()');
+  check('not shown before the configured time', !remBackdrop().classList.contains('open'), false, true);
+
+  // Day Start boundary: at 03:00 with dayStartAt=5 the app day is still yesterday.
+  // Days cover both weekdays (Mon+Tue) so ONLY the boundary can be what blocks it.
+  setReminder({ days: [1, 2], time: 0, lastShown: '' });
+  const remState = appState(win);
+  remState.settings.dayStartAt = 5;
+  h.setNow(new Date(2026, 9, 27, 3, 0, 0).getTime()); // 03:00 < day start 05:00
+  win.eval('maybeShowBackupReminder()');
+  check('never appears before the Day Start hour', !remBackdrop().classList.contains('open'), false, true);
+  h.setNow(new Date(2026, 9, 27, 5, 30, 0).getTime()); // just after day start
+  win.eval('maybeShowBackupReminder()');
+  check('appears on first open after the Day Start hour', remBackdrop().classList.contains('open'), true, false);
+  win.eval('closeBackupReminder()');
+  remState.settings.dayStartAt = 0;
+  h.setNow(OCT27);
+
+  // Confirm -> native export (wrapper), reminder closes, no date bookkeeping
+  setReminder({ days: [dow], time: 0, lastShown: '' });
+  calls(h).length = 0;
+  win.eval('maybeShowBackupReminder()');
+  check('reminder reopened for the export check', remBackdrop().classList.contains('open'), true, false);
+  win.eval('confirmExportBackup()');
+  check('Export Backup hands over to the native save flow', lastCall(h, 'exportBackup') !== null, true, false);
+  check('state is mirrored before the native export', countCalls(h, 'saveData', c => c[1] === 'recall_state') >= 1, '>=1',
+    countCalls(h, 'saveData', c => c[1] === 'recall_state'));
+  check('popup closed after exporting', !remBackdrop().classList.contains('open'), false, true);
+  check('countdown stopped after dismissing', !win.eval('backupReminderTimer'), true, !!win.eval('backupReminderTimer'));
+  check('reminder prefs untouched by showing/exporting',
+    getReminder().lastShown === '2026-10-27' && JSON.stringify(getReminder().days) === JSON.stringify([dow]),
+    '2026-10-27 / [' + dow + ']', getReminder().lastShown + ' / ' + JSON.stringify(getReminder().days));
+
+  // Filename contract (browser path)
+  const names = [];
+  const origClick = win.HTMLAnchorElement.prototype.click;
+  win.URL.createObjectURL = () => 'blob:mock';
+  win.URL.revokeObjectURL = () => { };
+  win.HTMLAnchorElement.prototype.click = function () { names.push(this.download); };
+  win.eval('exportData()');
+  win.HTMLAnchorElement.prototype.click = origClick;
+  check('export filename is Recall_DD-MM-YYYY_Backup.json',
+    names.length === 1 && /^Recall_\d{2}-\d{2}-\d{4}_Backup\.json$/.test(names[0]),
+    'Recall_27-10-2026_Backup.json', names[0]);
+  check('no page errors after the reminder flow', h.pageErrors.length === 0, 0, h.pageErrors.slice(0, 2).join(' | '));
 
   // -------------------------------------------------------------- summary --
   console.log('\n=== summary ===');

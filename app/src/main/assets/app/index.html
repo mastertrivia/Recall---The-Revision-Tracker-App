@@ -5775,8 +5775,7 @@ html, body { width:100%; max-width:100%; overflow-x:hidden; }
   .display-levels button{min-width:34px;height:34px;padding:0 8px;border-radius:10px;border:1px solid var(--line-strong);background:var(--surface-2);color:var(--text);font-weight:800;font-size:12px;cursor:pointer}
   .display-levels button.is-active{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
   .display-levels button.is-base{box-shadow:inset 0 0 0 1px var(--line-strong)}
-</style>
-      </div>
+</style></div><div class="card settings-card"><h3>Export Backup Reminder</h3><p class="card-desc">Get a periodic reminder to export a backup, so your revision history is never lost to a cleared browser or a new device.</p><div class="field"><label>REMIND ON</label><div class="weekday-pills backup-reminder-days" id="backupReminderDays"></div><p class="helper">Pick one, several or all seven days. The reminder appears once per app day.</p></div><div class="field"><label for="backupReminderTime">REMIND AFTER</label><select id="backupReminderTime" onchange="saveBackupReminderTime()"></select><p class="helper">The new app day starts at \u201cDay starts at\u201d (All other settings); before that hour yesterday's schedule still applies.</p></div></div>
     </section>
   </main>
 
@@ -5791,6 +5790,7 @@ html, body { width:100%; max-width:100%; overflow-x:hidden; }
 </div>
 
 <!-- Topic create/edit modal. Notes and schedule are part of the topic record. -->
+<div class="modal-backdrop" id="backupReminderBackdrop"><div class="backup-reminder-card" role="dialog" aria-modal="true" aria-labelledby="backupReminderTitle"><div class="backup-reminder-icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7.5 18.5A4.5 4.5 0 0 1 8 9.6 6 6 0 0 1 19.4 11a3.9 3.9 0 0 1-.4 7.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 12v8m0 0-3-3m3 3 3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><h2 id="backupReminderTitle">Export Backup</h2><span class="backup-reminder-badge">Reminder</span><p class="backup-reminder-msg">Do you want to export the backup?</p><div class="backup-reminder-actions"><button type="button" class="backup-reminder-cancel" id="backupReminderCancelBtn" onclick="cancelBackupReminder()" disabled>Cancel <span id="backupReminderCountdown">(10s)</span></button><button type="button" class="backup-reminder-export" onclick="confirmExportBackup()">Export Backup</button></div></div></div>
 <div class="modal-backdrop" id="topicModalBackdrop" onclick="backdropClose(event,'topicModalBackdrop')">
   <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="topicModalTitle">
     <div class="modal-head"><div><h2 id="topicModalTitle">Create a topic</h2><p>Save the topic once. Recall handles its revision dates and progress.</p></div><button class="icon-btn" onclick="closeModal('topicModalBackdrop')" aria-label="Close"><svg viewBox="0 0 24 24" fill="none"><path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button></div>
@@ -8321,6 +8321,7 @@ function renderSettings(){
   if(dayStart) dayStart.value = String(state.settings.dayStartAt ?? 0);
   const toastDuration = document.getElementById('toastDurationSec');
   if(toastDuration) toastDuration.value = String(state.settings.toastDurationSec ?? 1.5);
+  renderBackupReminderSettings();
   renderSubjectList();
   renderSettingsSwitch();
   renderStudyTimerSettings();
@@ -8605,7 +8606,8 @@ function exportData(){
   if(!snapshot||!Array.isArray(snapshot.topics))snapshot={version:1,subjects:[...DEFAULT_SUBJECTS],settings:state.settings||{},topics:[]};
   snapshot.topics=snapshot.topics.filter(t=>t&&typeof t==='object').map(normalizeTopic);
   const blob=new Blob([JSON.stringify({...snapshot,exportedAt:new Date().toISOString(),app:'Recall Topic Revision Studio'},null,2)],{type:'application/json'});
-  downloadBlob(blob,`recall-backup-${todayISO()}.json`);toast('Backup exported.');
+  const [y,m,d]=todayISO().split('-');
+  downloadBlob(blob,`Recall_${d}-${m}-${y}_Backup.json`);toast('Backup exported.');
 }
 function exportCSV(){
   const rows=[['Topic','Subject','Difficulty','Estimated minutes','Initial study date','Created at','Next revision','Revisions completed','Revisions planned before exam','Notes']];
@@ -8647,6 +8649,104 @@ function normalizeImportedSettings(raw){
   ['Easy','Medium','Hard'].forEach(d=>{const list=Array.isArray(smart[d])?smart[d].map(Number).filter(n=>Number.isInteger(n)&&n>=1&&n<=365):null;out.smartRevision[d]=list&&list.length?list:out.smartRevision[d]});
   return out;
 }
+/* Export Backup Reminder ---------------------------------------------------
+   A periodic nudge to export a backup, because users rarely open Settings on
+   their own. Stored in its OWN localStorage key (never inside the app state)
+   so importing a backup - which replaces the whole state - can never silently
+   enable, disable or re-arm the reminder. Shows at most once per app day,
+   using the same day boundary as the "Day starts at" setting, and only after
+   the configured hour. Dismissal is possible ONLY through the two buttons. */
+const BACKUP_REMINDER_KEY='recall_export_backup_reminder_v1';
+const BACKUP_REMINDER_DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const BACKUP_REMINDER_DEFAULT={days:[1,3,5],time:9};
+let backupReminderTimer=null;
+function backupReminderSafeRead(){try{return JSON.parse(localStorage.getItem(BACKUP_REMINDER_KEY)||'null')}catch(e){return null}}
+function backupReminderWrite(next){try{localStorage.setItem(BACKUP_REMINDER_KEY,JSON.stringify(next));return true}catch(e){return false}}
+function getBackupReminderSettings(){
+  const raw=backupReminderSafeRead()||{};
+  const days=Array.isArray(raw.days)?raw.days.map(Number).filter(n=>Number.isInteger(n)&&n>=0&&n<=6):[];
+  const time=Math.round(Number(raw.time));
+  return {days:days.length?[...new Set(days)].sort((a,b)=>a-b):[...BACKUP_REMINDER_DEFAULT.days],time:Number.isInteger(time)&&time>=0&&time<=23?time:BACKUP_REMINDER_DEFAULT.time,lastShown:typeof raw.lastShown==='string'?raw.lastShown:''};
+}
+function saveBackupReminderDays(){
+  const host=document.getElementById('backupReminderDays');if(!host)return;
+  const days=[...host.querySelectorAll('input[type=checkbox]:checked')].map(x=>Number(x.value)).filter(n=>Number.isInteger(n)&&n>=0&&n<=6);
+  if(!days.length){renderBackupReminderSettings();toast('Pick at least one day for the Export Backup reminder.','error');return}
+  backupReminderWrite({...getBackupReminderSettings(),days:[...new Set(days)].sort((a,b)=>a-b)});
+}
+function saveBackupReminderTime(){
+  const el=document.getElementById('backupReminderTime');if(!el)return;
+  const t=Math.round(Number(el.value));const cur=getBackupReminderSettings();
+  backupReminderWrite({...cur,time:Number.isInteger(t)&&t>=0&&t<=23?t:cur.time});
+}
+function renderBackupReminderSettings(){
+  const host=document.getElementById('backupReminderDays');
+  if(host){const sel=new Set(getBackupReminderSettings().days);host.innerHTML=BACKUP_REMINDER_DAYS.map((d,i)=>`<label class="weekday-pill"><input type="checkbox" value="${i}"${sel.has(i)?' checked':''} onchange="saveBackupReminderDays()"><span>${d}</span></label>`).join('')}
+  const time=document.getElementById('backupReminderTime');
+  if(time){if(!time.options.length){let html='';for(let h=0;h<24;h++)html+=`<option value="${h}">${h%12||12}:00 ${h<12?'AM':'PM'}</option>`;time.innerHTML=html}time.value=String(getBackupReminderSettings().time)}
+}
+function backupReminderDue(){
+  const cfg=getBackupReminderSettings();
+  const boundary=Math.max(0,Math.min(5,Number(state?.settings?.dayStartAt)||0));
+  const now=new Date();
+  const day=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  if(now.getHours()<boundary)day.setDate(day.getDate()-1); // same boundary as todayISO()
+  if(!cfg.days.includes(day.getDay()))return false;
+  const clock=now.getHours()+now.getMinutes()/60+now.getSeconds()/3600;
+  return clock>=Math.max(cfg.time,boundary);
+}
+function maybeShowBackupReminder(){
+  try{
+    const back=document.getElementById('backupReminderBackdrop');
+    if(back&&back.classList.contains('open'))return;
+    if(!backupReminderDue())return;
+    const today=todayISO();
+    const cfg=getBackupReminderSettings();
+    if(cfg.lastShown===today)return;          // at most once per app day
+    if(!backupReminderWrite({...cfg,lastShown:today}))return;
+    showBackupReminder();
+  }catch(e){console.warn('Export Backup reminder skipped',e)}
+}
+function showBackupReminder(){
+  const back=document.getElementById('backupReminderBackdrop');if(!back)return;
+  const cancelBtn=document.getElementById('backupReminderCancelBtn'),countEl=document.getElementById('backupReminderCountdown');
+  let left=10;
+  if(cancelBtn)cancelBtn.disabled=true;
+  if(countEl)countEl.textContent='(10s)';
+  clearInterval(backupReminderTimer);backupReminderTimer=null;
+  backupReminderTimer=setInterval(()=>{
+    left=Math.max(0,left-1);
+    if(countEl)countEl.textContent='('+left+'s)';
+    if(left<=0){clearInterval(backupReminderTimer);backupReminderTimer=null;if(cancelBtn)cancelBtn.disabled=false}
+  },1000);
+  back.classList.add('open');document.body.style.overflow='hidden';
+}
+function stopBackupReminderCountdown(){if(backupReminderTimer){clearInterval(backupReminderTimer);backupReminderTimer=null}}
+function closeBackupReminder(){
+  stopBackupReminderCountdown();
+  const back=document.getElementById('backupReminderBackdrop');if(!back)return;
+  back.classList.remove('open');
+  if(!document.querySelector('.modal-backdrop.open'))document.body.style.overflow='';
+}
+function cancelBackupReminder(){
+  /* The button is disabled for the first 10 seconds; this guard makes the
+     function itself refuse too, so no stray caller can cancel early. */
+  const btn=document.getElementById('backupReminderCancelBtn');if(btn&&btn.disabled)return;
+  const back=document.getElementById('backupReminderBackdrop');if(back&&back.classList.contains('open'))closeBackupReminder()
+}
+function confirmExportBackup(){
+  /* Inside the Android wrapper the native export flow saves the file straight
+     into the chosen folder (exactly like the Goal Tracker HTML did); a plain
+     browser falls back to the classic download. The reminder is dismissed
+     either way, and the date is never written here - the export itself is the
+     only thing that happened. */
+  const A=(typeof window!=='undefined'&&window.AndroidBridge)||null;
+  const native=!!(A&&typeof A.exportBackup==='function');
+  if(native&&window.shell&&typeof window.shell.mirror==='function'){try{window.shell.mirror()}catch(e){}}
+  closeBackupReminder();
+  if(native){try{A.exportBackup();return}catch(e){}}
+  exportData();
+}
 function resetApp(){
   
   
@@ -8675,7 +8775,7 @@ function toast(message,type='success'){
   el._toastTimer=setTimeout(dismiss,duration*1000);
   while(host.children.length>3){const oldest=host.firstElementChild;if(oldest&&oldest!==el){clearTimeout(oldest._toastTimer);oldest.remove()}else break}
 }
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){hideDoneMenu();hideNotesMenu();document.querySelectorAll('#noteEditors .note-actions-menu').forEach(m=>m.classList.add('hidden'));document.querySelectorAll('#noteEditors .note-menu-btn').forEach(b=>b.setAttribute('aria-expanded','false'));document.querySelectorAll('.modal-backdrop.open').forEach(m=>closeModal(m.id))}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){hideDoneMenu();hideNotesMenu();document.querySelectorAll('#noteEditors .note-actions-menu').forEach(m=>m.classList.add('hidden'));document.querySelectorAll('#noteEditors .note-menu-btn').forEach(b=>b.setAttribute('aria-expanded','false'));document.querySelectorAll('.modal-backdrop.open:not(#backupReminderBackdrop)').forEach(m=>closeModal(m.id))}});
 document.addEventListener('click',e=>{if(!e.target.closest('.note-menu-wrap')){document.querySelectorAll('#noteEditors .note-actions-menu').forEach(m=>m.classList.add('hidden'));document.querySelectorAll('#noteEditors .note-menu-btn').forEach(b=>b.setAttribute('aria-expanded','false'))}if(!e.target.closest('.done-menu-wrap'))hideDoneMenu();if(!e.target.closest('.notes-menu-wrap'))hideNotesMenu();if(!e.target.closest('.overdue-mark-wrap'))hideOverduePopovers();const hist=document.querySelector('.detail-history-toggle'),panel=document.getElementById('detailHistoryPanel');if(hist&&panel&&!panel.classList.contains('hidden')&&!e.target.closest('.detail-history-toggle')&&!e.target.closest('#detailHistoryPanel')){panel.classList.add('hidden');hist.classList.remove('expanded');document.querySelector('.detail-history-link-row')?.classList.remove('history-is-expanded')}});
 document.addEventListener('change',e=>{if(e.target.id==='topicStartDate'||e.target.id==='topicFirstRevision')renderSchedulePreview()});
 
@@ -8683,6 +8783,10 @@ document.addEventListener('change',e=>{if(e.target.id==='topicStartDate'||e.targ
 /* Initial launch. Empty state is intentional: no fake demo data is inserted. */
 applyTheme();
 renderAll();
+/* Export Backup reminder: evaluated once the first paint is done so it never
+   delays startup; it respects the selected days, the configured time and the
+   app-day boundary, and shows at most once per app day. */
+setTimeout(maybeShowBackupReminder,800);
 </script>
 
 <style id="revision20-gs-contrast-and-compact-topic-actions">
@@ -8935,6 +9039,24 @@ renderAll();
 #smartSchedulePanel{padding:12px!important}
 #smartSchedulePanel .smart-schedule-summary{font-size:12px;line-height:1.5;color:var(--text-muted);margin-top:8px}
 #scheduleStopMode option[value="occurrences"]{display:none}
+</style>
+
+<style id="export-backup-reminder-styles">
+/* Export Backup Reminder: centred card that only its two buttons can dismiss. */
+.backup-reminder-card{width:min(400px,100%);background:var(--surface);border:1px solid var(--line-strong);border-radius:24px;box-shadow:var(--shadow);padding:26px 20px 20px;display:flex;flex-direction:column;align-items:center;text-align:center;animation:modalIn .2s ease}
+.backup-reminder-icon{width:64px;height:64px;border-radius:50%;background:#e8f1ff;color:#2563eb;display:grid;place-items:center;margin-bottom:14px}
+.backup-reminder-icon svg{width:32px;height:32px}
+#backupReminderTitle{margin:0;font-size:clamp(20px,5vw,24px);font-weight:850;letter-spacing:-.03em;color:var(--text)}
+.backup-reminder-badge{margin-top:8px;padding:4px 12px;border-radius:999px;background:#e8f1ff;color:#1d63d1;font-size:11px;font-weight:800}
+.backup-reminder-msg{margin:14px 0 18px;color:var(--muted);font-size:14px;font-weight:600}
+.backup-reminder-actions{display:flex;gap:10px;width:100%}
+.backup-reminder-cancel{flex:1 1 25%;min-width:0;background:var(--surface-2);border:1px solid var(--line-strong);border-radius:14px;color:var(--muted);font:inherit;font-weight:750;font-size:13px;padding:13px 6px;cursor:pointer}
+.backup-reminder-cancel:disabled{opacity:.8;cursor:default}
+.backup-reminder-cancel span{font-size:11px;font-weight:600;opacity:.85;margin-left:2px;white-space:nowrap}
+.backup-reminder-export{flex:3 1 75%;min-width:0;background:#2563eb;border:0;border-radius:14px;color:#fff;font:inherit;font-weight:800;font-size:14px;padding:13px 10px;cursor:pointer}
+[data-theme=dark] .backup-reminder-icon{background:#152947}
+[data-theme=dark] .backup-reminder-badge{background:#152947;color:#8fc5ff}
+@media(max-width:380px){.backup-reminder-card{padding:22px 14px 16px}.backup-reminder-cancel{font-size:12px}.backup-reminder-export{font-size:13px}}
 </style>
 
 <script>
