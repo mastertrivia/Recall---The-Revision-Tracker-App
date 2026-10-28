@@ -5758,14 +5758,13 @@ html, body { width:100%; max-width:100%; overflow-x:hidden; }
     <label for="overdueReminderTime">OVERDUE REMINDER TIME</label>
     <select id="overdueReminderTime" class="modal-input" onchange="shell.setOverdueReminderTime(this.value)"></select>
   </div>
-  <p class="helper" id="notificationPermissionStatus">Notification permission: checking…</p>
 </div>
 
 <div class="card settings-card">
   <h3>Sound</h3>
-  <p class="card-desc">Short action-feedback sounds only — no alarm tones or music.</p>
+  <p class="card-desc">Two short action sounds only — completed and overdue. No alarm tones, no looping.</p>
   <div class="switch-row">
-    <div class="switch-copy"><strong>Action sounds</strong><span>Plays a short confirmation when you mark a revision completed.</span></div>
+    <div class="switch-copy"><strong>Action sounds</strong><span>Plays a short effect when you mark a revision completed or overdue.</span></div>
     <button type="button" class="switch" id="soundSwitch" onclick="shell.toggleSound()" aria-label="Toggle action sounds"><span></span></button>
   </div>
 </div>
@@ -5775,7 +5774,7 @@ html, body { width:100%; max-width:100%; overflow-x:hidden; }
   .display-levels button{min-width:34px;height:34px;padding:0 8px;border-radius:10px;border:1px solid var(--line-strong);background:var(--surface-2);color:var(--text);font-weight:800;font-size:12px;cursor:pointer}
   .display-levels button.is-active{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
   .display-levels button.is-base{box-shadow:inset 0 0 0 1px var(--line-strong)}
-</style></div><div class="card settings-card"><h3>Export Backup Reminder</h3><p class="card-desc">Get a periodic reminder to export a backup, so your revision history is never lost to a cleared browser or a new device.</p><div class="field"><label>REMIND ON</label><div class="weekday-pills backup-reminder-days" id="backupReminderDays"></div><p class="helper">Pick one, several or all seven days. The reminder appears once per app day.</p></div><div class="field"><label for="backupReminderTime">REMIND AFTER</label><select id="backupReminderTime" onchange="saveBackupReminderTime()"></select><p class="helper">The new app day starts at \u201cDay starts at\u201d (All other settings); before that hour yesterday's schedule still applies.</p></div></div>
+</style><div class="card settings-card"><h3>Export Backup Reminder</h3><p class="card-desc">Get a periodic reminder to export a backup, so your revision history is never lost to a cleared browser or a new device.</p><div class="field"><label>REMIND ON</label><div class="weekday-pills backup-reminder-days" id="backupReminderDays"></div><p class="helper">Pick one, several or all seven days. The reminder appears once per app day.</p></div><div class="field"><label for="backupReminderTime">REMIND AFTER</label><select id="backupReminderTime" class="modal-input" onchange="saveBackupReminderTime()"></select><p class="helper">The new app day starts at "Day starts at" (All other settings); before that hour yesterday's schedule still applies.</p></div></div>
     </section>
   </main>
 
@@ -6066,8 +6065,22 @@ state.topics=state.topics.map(normalizeTopic);
    difficulty sorting, duration sorting, notes, and completion tracking.
    They are normal editable records, not locked examples. First review is due
    today; later reviews follow each topic's saved schedule. */
+const DEMO_SEEDED_KEY='recall_demo_seeded_v1';
+/* Demo topics belong to a FIRST run only. Two independent gates:
+   1) a sticky flag written on the very first boot, so once the app has ever
+      started the samples can never come back (Settings > Refresh app, page
+      reload, app restart, "Reset all app data");
+   2) an empty workspace must be GENUINELY fresh - no saved payload, no shadow
+      backup, no rescue copy. If the user deleted every topic, storage still
+      holds that empty workspace, so re-seeding is refused: deleting topics is
+      a decision, not an empty folder waiting to be refilled. */
 function seedDemoTopicsIfEmpty(){
+  try{ if(localStorage.getItem(DEMO_SEEDED_KEY)) return; }catch(e){ return; }
+  try{ localStorage.setItem(DEMO_SEEDED_KEY,'1'); }catch(e){}
   if(state.topics.length) return;
+  try{
+    if(localStorage.getItem(STORAGE_KEY)||localStorage.getItem(BACKUP_KEY)||localStorage.getItem(RESCUE_KEY)) return;
+  }catch(e){ return; }
   const today = '2026-10-26';
   const yesterday = '2026-10-25';
   const oct24 = '2026-10-24';
@@ -8347,7 +8360,12 @@ function initSettingsAccordions(){
       'examination-study-capacity':'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h3M8 17h7"/>',
       'all-other-settings':'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.7 1.7-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5v.2h-2.4v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1L8 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H6.7v-2.4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9L8 8.6l1.7-1.7.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5v-.2h2.4v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 1.7 1.7-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2V14h-.2a1.7 1.7 0 0 0-1.5 1Z"/>',
       'smart-revision':'<path d="M3 12a9 9 0 0 1 15.4-6.4L21 8"/><path d="M21 3v5h-5M21 12a9 9 0 0 1-15.4 6.4L3 16"/><path d="M3 21v-5h5"/>',
-      'data-backup':'<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>'
+      'data-management':'<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
+      'android-application':'<rect x="5" y="2" width="14" height="20" rx="3"/><path d="M12 18h.01"/>',
+      'display-size':'<path d="M4 7V4h16v3M9 20h6M12 4v16"/>',
+      'notifications':'<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+      'sound':'<path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>',
+      'export-backup-reminder':'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>'
     };
     if(iconPaths[key]){const icon=document.createElement('span');icon.className='settings-heading-icon';icon.setAttribute('aria-hidden','true');icon.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${iconPaths[key]}</svg>`;heading.prepend(icon);}
     const content=document.createElement('div');content.className='settings-accordion-content';content.id=`settings-content-${key}`;
@@ -9272,10 +9290,23 @@ setTimeout(maybeShowBackupReminder,800);
 
   function soundOn() { return flag(FLAG.sound, true); }
 
-  // Wrap the app's existing completion actions without touching their bodies:
-  // the sound only plays when a revision actually became completed.
+  // Revisions currently flagged overdue. Marking one raises this count, which is
+  // what the Overdue sound listens for - so it fires only on a real transition,
+  // never on a re-render, a reload or an already-overdue revision.
+  function overdueMarkedCount() {
+    var n = 0;
+    try {
+      state.topics.forEach(function (t) {
+        (t.revisions || []).forEach(function (r) { if (r.status === 'overdue') n++; });
+      });
+    } catch (e) { }
+    return n;
+  }
+
+  // Wrap the app's existing actions without touching their bodies: each effect
+  // plays only when its own state actually changed, exactly once.
   function hookCompletions() {
-    ['completeOpenTopic', 'completeRevisionDirect', 'completeOverdueRevision'].forEach(function (name) {
+    ['completeOpenTopic', 'completeRevisionDirect', 'completeOverdueRevision', 'setHomeRevisionStatus'].forEach(function (name) {
       var original = window[name];
       if (typeof original !== 'function') return;
       window[name] = function () {
@@ -9283,6 +9314,21 @@ setTimeout(maybeShowBackupReminder,800);
         var out = original.apply(this, arguments);
         try {
           if (soundOn() && completedCount() > before) call('playCompletionSound');
+        } catch (e) { }
+        return out;
+      };
+    });
+  }
+
+  function hookOverdueMarks() {
+    ['markOpenTopicOverdue', 'setHomeRevisionStatus'].forEach(function (name) {
+      var original = window[name];
+      if (typeof original !== 'function') return;
+      window[name] = function () {
+        var before = overdueMarkedCount();
+        var out = original.apply(this, arguments);
+        try {
+          if (soundOn() && overdueMarkedCount() > before) call('playOverdueSound');
         } catch (e) { }
         return out;
       };
@@ -9309,7 +9355,7 @@ setTimeout(maybeShowBackupReminder,800);
         if (restoreFromNative()) location.reload();
         return;
       }
-      if (name === 'notificationPermission') { renderNotificationStatus(); return; }
+      if (name === 'notificationPermission') return;
     } catch (e) { console.warn('[shell] event ' + name + ' failed', e); }
   };
 
@@ -9372,18 +9418,6 @@ setTimeout(maybeShowBackupReminder,800);
     if (el) el.classList.toggle('on', !!on);
   }
 
-  function renderNotificationStatus() {
-    var el = document.getElementById('notificationPermissionStatus');
-    if (!el) return;
-    if (!available) { el.textContent = 'Android wrapper not detected \u2014 notifications are unavailable in a plain browser.'; return; }
-    var d = call('getDiagnostics');
-    var info = null;
-    try { info = typeof d === 'string' ? JSON.parse(d) : d; } catch (e) { }
-    if (!info) { el.textContent = 'Notification permission: status unavailable.'; return; }
-    el.textContent = 'Permission: ' + (info.notificationsAllowed ? 'granted' : 'NOT granted \u2014 tap any notification control to allow it') +
-      ' \u00b7 Exact alarms: ' + (info.exactAlarmsAllowed ? 'allowed' : 'system limited (reminders may be delayed)') + '.';
-  }
-
   function renderBridgeStatus() {
     var el = document.getElementById('shellBridgeStatus');
     if (!el) return;
@@ -9404,7 +9438,6 @@ setTimeout(maybeShowBackupReminder,800);
     setSwitch('soundSwitch', flag(FLAG.sound, true));
     renderDisplayLevels();
     renderBridgeStatus();
-    renderNotificationStatus();
   }
 
   /* Public surface used by the injected Settings markup. */
@@ -9461,6 +9494,7 @@ setTimeout(maybeShowBackupReminder,800);
     renderSettingsState();
     hookPersist();
     hookCompletions();
+    hookOverdueMarks();
 
     if (!available) return;
 
@@ -9619,7 +9653,11 @@ setTimeout(maybeShowBackupReminder,800);
 #page-settings .form-row{gap:8px!important}
 #page-settings .helper{font-size:10px!important;line-height:1.4!important;margin-top:7px!important}
 #page-settings .switch-row{padding:9px 0!important;gap:10px!important}
-#page-settings .settings-actions{gap:6px!important}
+#page-settings .settings-actions{display:flex!important;flex-wrap:wrap!important;gap:10px 10px!important;align-items:center!important;margin-bottom:10px!important}
+#page-settings .settings-actions:last-child{margin-bottom:0!important}
+#page-settings .settings-card .primary-btn,
+#page-settings .settings-card .secondary-btn,
+#page-settings .settings-card .danger-btn{padding:9px 14px!important;font-size:12px!important;border-radius:99px!important;margin:0!important;line-height:1.2!important;white-space:nowrap!important}
 #page-settings .settings-card .primary-btn,
 #page-settings .settings-card .secondary-btn,
 #page-settings .settings-card .danger-btn{padding:8px 10px!important;font-size:11px!important;border-radius:9px!important}
@@ -10235,4 +10273,3 @@ setTimeout(maybeShowBackupReminder,800);
 #topicModalBackdrop .note-menu-btn{width:30px!important;height:30px!important;border-width:1px!important}
 #topicModalBackdrop .modal-input{border-width:1px!important}
 </style>
-

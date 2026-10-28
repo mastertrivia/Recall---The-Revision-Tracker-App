@@ -92,7 +92,10 @@ function makeBridge(win, opts = {}) {
     deleteData: (key) => { delete storage[key]; return true; },
     listDataKeys: () => JSON.stringify(Object.keys(storage)),
 
-    playCompletionSound: () => true,
+    // v5.0: both action effects record so the suite can assert WHICH sound
+    // fired (completed vs overdue) and how many times.
+    playCompletionSound: () => rec('playCompletionSound', []),
+    playOverdueSound: () => rec('playOverdueSound', []),
     stopCompletionSound: () => true,
     playNamedSound: () => true,
     playNamedSoundForDuration: () => true,

@@ -167,8 +167,12 @@ const renderSettingsUI = (win) => win.eval("(function(){try{renderBackupReminder
     check('daily duration matches the sum of topic durations',
       mins > 0 && text.includes('Estimated revision time: ' + expectedDur), expectedDur,
       text.match(/Estimated revision time: [^.]+/) || 'missing');
+    // Compare against the harness clock: the page runs on fake timers set to
+    // OCT27, while Node's Date.now() is the real wall clock. Measuring the
+    // scheduled time against the real clock made this assertion depend on when
+    // the suite happened to run instead of on the app's own timeline.
     check('daily alarm is scheduled for the configured time',
-      typeof daily[2] === 'number' && daily[2] > Date.now(), 'future ms', daily[2]);
+      typeof daily[2] === 'number' && daily[2] > h.now(), 'future ms vs app clock', daily[2]);
     console.log('   daily text: ' + text);
   }
 
@@ -371,6 +375,56 @@ const renderSettingsUI = (win) => win.eval("(function(){try{renderBackupReminder
     names.length === 1 && /^Recall_\d{2}-\d{2}-\d{4}_Backup\.json$/.test(names[0]),
     'Recall_27-10-2026_Backup.json', names[0]);
   check('no page errors after the reminder flow', h.pageErrors.length === 0, 0, h.pageErrors.slice(0, 2).join(' | '));
+
+  // -------------------------------------------------------- action sounds --
+  suite('Action sounds (completed / overdue, one shot each)');
+  const pickPendingDue = `(function(){
+    var t = state.topics.filter(function(x){ return !x.blocked && (x.revisions||[]).some(function(r){ return !r.completedAt && r.dueDate <= todayISO(); }); })[0];
+    return t ? { id: t.id, rev: t.revisions.filter(function(r){ return !r.completedAt && r.dueDate <= todayISO(); })[0].id } : null;
+  })()`;
+  const pickPendingToday = `(function(){
+    var t = state.topics.filter(function(x){ return !x.blocked && (x.revisions||[]).some(function(r){ return !r.completedAt && r.status !== 'overdue' && r.dueDate >= todayISO(); }); })[0];
+    return t ? { id: t.id, rev: t.revisions.filter(function(r){ return !r.completedAt && r.status !== 'overdue' && r.dueDate >= todayISO(); })[0].id } : null;
+  })()`;
+
+  calls(h).length = 0;
+  const compTarget = win.eval(pickPendingDue);
+  if (compTarget) win.eval(`setHomeRevisionStatus(${JSON.stringify(compTarget.id)}, ${JSON.stringify(compTarget.rev)}, 'completed')`);
+  check('completed sound fires when a revision is marked completed',
+    !!compTarget && countCalls(h, 'playCompletionSound') === 1, 1, countCalls(h, 'playCompletionSound'));
+  check('no overdue sound on completion',
+    countCalls(h, 'playOverdueSound') === 0, 0, countCalls(h, 'playOverdueSound'));
+
+  calls(h).length = 0;
+  const overTarget = win.eval(pickPendingToday);
+  if (overTarget) win.eval(`setHomeRevisionStatus(${JSON.stringify(overTarget.id)}, ${JSON.stringify(overTarget.rev)}, 'overdue')`);
+  check('overdue sound fires when a revision is marked overdue',
+    !!overTarget && countCalls(h, 'playOverdueSound') === 1, 1, countCalls(h, 'playOverdueSound'));
+  check('no completion sound on overdue',
+    countCalls(h, 'playCompletionSound') === 0, 0, countCalls(h, 'playCompletionSound'));
+
+  // the topic-detail path ("Mark overdue") must sound the same way
+  calls(h).length = 0;
+  const detailTarget = win.eval(pickPendingToday);
+  if (detailTarget) {
+    win.eval(`(function(){ try {
+      openTopicId = ${JSON.stringify(detailTarget.id)}; window.openRevisionId = ${JSON.stringify(detailTarget.rev)};
+      markOpenTopicOverdue(); return true;
+    } catch (e) { return String(e); } })()`);
+  }
+  check('overdue sound fires from the topic-detail "Mark overdue" path',
+    !!detailTarget && countCalls(h, 'playOverdueSound') === 1, 1, countCalls(h, 'playOverdueSound'));
+
+  // with the toggle off, neither action may make a sound
+  calls(h).length = 0;
+  win.shell.toggleSound();
+  const mutedTarget = win.eval(pickPendingToday);
+  if (mutedTarget) win.eval(`setHomeRevisionStatus(${JSON.stringify(mutedTarget.id)}, ${JSON.stringify(mutedTarget.rev)}, 'overdue')`);
+  check('sound switch mutes both effects',
+    countCalls(h, 'playOverdueSound') + countCalls(h, 'playCompletionSound') === 0, 0,
+    countCalls(h, 'playOverdueSound') + countCalls(h, 'playCompletionSound'));
+  win.shell.toggleSound(); // leave it as found
+  check('no page errors after the sound flow', h.pageErrors.length === 0, 0, h.pageErrors.slice(0, 2).join(' | '));
 
   // -------------------------------------------------------------- summary --
   console.log('\n=== summary ===');

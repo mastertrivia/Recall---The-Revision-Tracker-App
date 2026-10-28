@@ -31,25 +31,15 @@ object AlarmPlayer {
     private val handler = Handler(Looper.getMainLooper())
     private var stopRunnable: Runnable? = null
 
+    /**
+     * Silenced on request (v5.0): the wrapper no longer plays alarm tones,
+     * ringtones or any scheduled audio. Reminders arrive as a plain
+     * notification; the only sound the app makes is [ActionSound] (topic
+     * completed / topic overdue). Kept as a no-op so the reminder service and
+     * legacy bridge calls keep their shape without producing audio.
+     */
     fun play(context: Context, slot: String, durationMs: Long): Boolean {
-        val appCtx = context.applicationContext
-        val normalized = AlarmContract.normalizeSlot(slot)
-        val clamped = AlarmContract.clampDuration(durationMs)
-        if (Looper.myLooper() == Looper.getMainLooper()) {
-            return playOnMain(appCtx, normalized, clamped)
-        }
-        var result = false
-        val latch = CountDownLatch(1)
-        handler.post {
-            result = playOnMain(appCtx, normalized, clamped)
-            latch.countDown()
-        }
-        return try {
-            latch.await(3, TimeUnit.SECONDS)
-            result
-        } catch (_: Exception) {
-            result
-        }
+        return false
     }
 
     fun stop() {

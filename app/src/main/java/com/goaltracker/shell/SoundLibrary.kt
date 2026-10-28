@@ -30,23 +30,11 @@ object SoundLibrary {
     )
 
     // Order here is the order shown in the native chooser.
+    // v5.0 (user request): every alarm/ringtone was removed. The wrapper owns
+    // exactly two clips - the action effects - and nothing else makes a sound.
     val BUILTINS: List<BuiltinSound> = listOf(
-        // Short notification tones (played once).
-        BuiltinSound("chime", "Chime", R.raw.snd_short_chime, false),
-        BuiltinSound("ding", "Ding", R.raw.snd_short_ding, false),
-        BuiltinSound("marimba", "Marimba", R.raw.snd_short_marimba, false),
-        BuiltinSound("pop", "Pop", R.raw.snd_short_pop, false),
-        BuiltinSound("glass", "Glass", R.raw.snd_short_glass, false),
-        BuiltinSound("harp", "Soft Harp", R.raw.snd_short_harp, false),
-        BuiltinSound("wood", "Wood Tap", R.raw.snd_short_wood, false),
-        BuiltinSound("piano", "Soft Piano", R.raw.snd_short_piano, false),
-        BuiltinSound("drop", "Water Drop", R.raw.snd_short_drop, false),
-        // Long alarm/warning tones (looped to a full ring by the shell).
-        BuiltinSound("classic", "Classic Alarm", R.raw.snd_long_classic, true),
-        BuiltinSound("siren", "Siren", R.raw.snd_long_siren, true),
-        BuiltinSound("pulse", "Urgent Pulse", R.raw.snd_long_pulse, true),
-        BuiltinSound("bells", "Bells", R.raw.snd_long_bells, true),
-        BuiltinSound("digital", "Digital Alarm", R.raw.snd_long_digital, true),
+        BuiltinSound("completed", "Topic completed", R.raw.topic_completed, false),
+        BuiltinSound("overdue", "Topic overdue", R.raw.topic_overdue, false)
     )
 
     fun builtinByKey(key: String?): BuiltinSound? =
@@ -69,7 +57,7 @@ object SoundLibrary {
 
     /** Sensible out-of-the-box defaults so audio works immediately on install. */
     private fun defaultKeyFor(slot: String) =
-        if (slot == SLOT_BOMB) "classic" else "chime"
+        if (slot == SLOT_BOMB) "overdue" else "completed"
 
     data class Selection(val type: String, val value: String)
 

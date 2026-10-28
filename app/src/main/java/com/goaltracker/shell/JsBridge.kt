@@ -643,19 +643,27 @@ class JsBridge(private val activity: MainActivity) {
     }
 
     /**
-     * Play the custom completion sound if set and "soundEnabled" flag is on.
-     * v2.2: when no custom sound is set, falls back to the device's default
-     * notification ringtone so completion is NEVER silent while Sound is on.
-     * Returns false (never throws) only when Sound is off or playback fails.
+     * Play the "topic completed" effect - one shot, exactly the clip's own
+     * duration, never looping (v5.0; the old alarm/ringtone fallbacks and the
+     * ringing duration are gone). Returns false only when playback failed.
      */
     @JavascriptInterface
     fun playCompletionSound(): Boolean = safe("playCompletionSound", false) {
-        playNamedSoundInternal("completion")
+        releasePreviewPlayer()
+        ActionSound.play(activity, R.raw.topic_completed)
+    }
+
+    /** Play the "topic overdue" effect. Same one-shot contract as above. */
+    @JavascriptInterface
+    fun playOverdueSound(): Boolean = safe("playOverdueSound", false) {
+        releasePreviewPlayer()
+        ActionSound.play(activity, R.raw.topic_overdue)
     }
 
     @JavascriptInterface
     fun stopCompletionSound() {
         safe("stopCompletionSound", Unit) {
+            ActionSound.stop()
             AlarmPlaybackService.stopPlayback(activity)
             releasePreviewPlayer()
         }
@@ -726,7 +734,11 @@ class JsBridge(private val activity: MainActivity) {
      */
     private fun playNamedSoundInternal(name: String, ringDurationMs: Long = RING_DURATION_MS): Boolean {
         releasePreviewPlayer()
-        return AlarmPlayer.play(activity, AlarmContract.normalizeSlot(name), ringDurationMs)
+        // v5.0: no alarm/ringtone path remains. Named playback resolves to the
+        // matching action clip and plays exactly once; the duration argument is
+        // kept for API compatibility but no longer rings or loops anything.
+        val res = if (name == "overdue") R.raw.topic_overdue else R.raw.topic_completed
+        return ActionSound.play(activity, res)
     }
 
     // ---- v2.3: built-in sound library + selection (native-authoritative) ----
@@ -833,6 +845,7 @@ class JsBridge(private val activity: MainActivity) {
      */
     @JavascriptInterface
     fun stopSound(): Boolean = safe("stopSound", false) {
+        ActionSound.stop()
         AlarmPlaybackService.stopPlayback(activity)
         releasePreviewPlayer()
         true
@@ -840,6 +853,7 @@ class JsBridge(private val activity: MainActivity) {
 
     /** True while native alarm or preview audio is producing sound. */
     fun isRinging(): Boolean {
+        if (ActionSound.isPlaying()) return true
         if (AlarmPlayer.isRinging()) return true
         return try { previewPlayer?.isPlaying == true } catch (_: Exception) { false }
     }
@@ -852,6 +866,7 @@ class JsBridge(private val activity: MainActivity) {
     fun stopIfRinging(): Boolean = safe("stopIfRinging", false) {
         val playing = isRinging()
         if (!playing) return@safe false
+        ActionSound.stop()
         AlarmPlaybackService.stopPlayback(activity)
         releasePreviewPlayer()
         true
