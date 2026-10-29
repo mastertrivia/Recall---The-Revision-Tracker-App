@@ -155,9 +155,11 @@ const renderSettingsUI = (win) => win.eval("(function(){try{renderBackupReminder
   check('daily reminder scheduled', !!daily, true, !!daily);
   if (daily) {
     const text = daily[4];
-    const m = text.match(/You have (\d+) topics?/);
+    const m = text.match(/^(\d+) topics?/);
     check('daily count matches the app\'s own due list',
       m && Number(m[1]) === expectedDue.length, expectedDue.length, m ? m[1] : 'no count');
+    check('daily line is straight (no overdue mixing, no fluff)',
+      !/overdue|Congrats|You have/i.test(text), 'clean line', text);
     const mins = expectedDue.reduce((s, t) => s + (Number(t.duration) || 0), 0);
     // same formatting the app uses: 3h 41m / 45m / 1h
     const expectedDur = (n => {
@@ -165,8 +167,8 @@ const renderSettingsUI = (win) => win.eval("(function(){try{renderBackupReminder
       return [h ? h + 'h' : null, m ? m + 'm' : null].filter(Boolean).join(' ') || '0m';
     })(mins);
     check('daily duration matches the sum of topic durations',
-      mins > 0 && text.includes('Estimated revision time: ' + expectedDur), expectedDur,
-      text.match(/Estimated revision time: [^.]+/) || 'missing');
+      mins > 0 && text.includes(expectedDur + ' estimated.'), expectedDur,
+      text.match(/\S+ estimated\./) || 'missing');
     // Compare against the harness clock: the page runs on fake timers set to
     // OCT27, while Node's Date.now() is the real wall clock. Measuring the
     // scheduled time against the real clock made this assertion depend on when
@@ -197,11 +199,69 @@ const renderSettingsUI = (win) => win.eval("(function(){try{renderBackupReminder
   win.shell.reschedule();
   const overdueOn = lastCall(h, 'scheduleAlarm', c => c[1] === 9102);
   check('overdue reminder schedules when enabled', !!overdueOn, true, !!overdueOn);
-  const expectedOverdue = win.shell.overdue().length;
-  check('overdue text reports the app\'s overdue list',
-    overdueOn && overdueOn[4].indexOf(String(expectedOverdue)) === 0, expectedOverdue,
-    overdueOn ? overdueOn[4].slice(0, 30) : 'none');
+  // The notification counts what the Overdue SCREEN shows, so a topic that is
+  // overdue but also due today (Home > Overdue) is NOT part of it.
+  const expectedOverdue = win.shell.overdueItems().length;
+  const expectedOverdueText = expectedOverdue
+    ? expectedOverdue + (expectedOverdue === 1 ? ' topic overdue.' : ' topics overdue.')
+    : 'No overdue topics.';
+  check('overdue text reports the Overdue screen\'s count',
+    overdueOn && overdueOn[4] === expectedOverdueText, expectedOverdueText,
+    overdueOn ? overdueOn[4] : 'none');
+  check('overdue count excludes topics that are also due today',
+    expectedOverdue === win.eval('(function(){var t=todayISO(),d={};getItemsForDate(t).forEach(function(x){if(!x.revision.completedAt&&!x.revision.clearedByLaterRevisionAt)d[String(x.topic.id)]=1});return getAllDueItems(t).filter(function(x){return x.revision.dueDate<t&&!d[String(x.topic.id)]}).length})()'),
+    'same rule as renderOverduePage', expectedOverdue);
+
+  // ...and it still fires when nothing is overdue, with a plain confirmation.
+  const dueBackup = appState(win).topics.map(t => t.revisions);
+  appState(win).topics.forEach(t => { t.revisions = t.revisions.filter(r => r.dueDate >= win.eval('todayISO()')); });
+  win.shell.reschedule();
+  const overdueEmpty = lastCall(h, 'scheduleAlarm', c => c[1] === 9102);
+  check('overdue reminder still scheduled with nothing overdue',
+    !!overdueEmpty, true, !!overdueEmpty);
+  check('empty overdue text is a plain confirmation',
+    overdueEmpty && overdueEmpty[4] === 'No overdue topics.',
+    'No overdue topics.', overdueEmpty ? overdueEmpty[4] : 'none');
+  appState(win).topics.forEach((t, i) => { t.revisions = dueBackup[i]; });
+  win.shell.reschedule();
   win.shell.toggleOverdueReminder(); // leave the switch as found
+
+  // ------------------------------------------ instant completion notice --
+  suite('Completion notification');
+  // Pick a topic that is due today with nothing missed behind it, so marking it
+  // completed has no side effects on other suites' fixtures.
+  const pickCleanRev = `(function(){
+    var today = todayISO();
+    var t = state.topics.filter(function(x){
+      if (x.blocked) return false;
+      var revs = x.revisions || [];
+      if (!revs.some(function(r){ return !r.completedAt && !r.clearedByLaterRevisionAt && r.dueDate <= today; })) return false;
+      return !revs.some(function(r){ return !r.completedAt && !r.clearedByLaterRevisionAt && r.dueDate < today; });
+    })[0];
+    if (!t) return null;
+    var r = t.revisions.filter(function(x){ return !x.completedAt && !x.clearedByLaterRevisionAt && x.dueDate <= today; })[0];
+    return { id: t.id, rev: r.id, name: t.name };
+  })()`;
+  calls(h).length = 0;
+  const doneTarget = win.eval(pickCleanRev);
+  check('a completable topic exists', !!doneTarget, true, doneTarget ? 'found' : 'none');
+  if (doneTarget) win.eval(`completeRevisionDirect(${JSON.stringify(doneTarget.id)}, ${JSON.stringify(doneTarget.rev)})`);
+  const done = lastCall(h, 'showNotification', c => c[1] === 9103);
+  check('completing a topic posts a notification', !!done, true, !!done);
+  check('notification is the straight "✓ Completed" line',
+    done && done[2] === '\u2713 Completed', '\u2713 Completed', done ? JSON.stringify(done[2]) : 'none');
+  check('notification carries the topic name',
+    done && done[3] === '"' + doneTarget.name + '"', '"' + (doneTarget ? doneTarget.name : '?') + '"',
+    done ? JSON.stringify(done[3]) : 'none');
+  const doneCount = countCalls(h, 'showNotification', c => c[1] === 9103);
+  check('exactly one notification per completion', doneCount === 1, 1, doneCount);
+  // Re-running the same completion changes nothing -> no second ping.
+  if (doneTarget) win.eval(`completeRevisionDirect(${JSON.stringify(doneTarget.id)}, ${JSON.stringify(doneTarget.rev)})`);
+  check('no duplicate notification when nothing changes',
+    countCalls(h, 'showNotification', c => c[1] === 9103) === 1, 1,
+    countCalls(h, 'showNotification', c => c[1] === 9103));
+  check('no page errors after the completion notice',
+    h.pageErrors.length === 0, 0, h.pageErrors.slice(0, 2).join(' | '));
 
   // ------------------------------------------------------------- settings --
   suite('Settings switches');

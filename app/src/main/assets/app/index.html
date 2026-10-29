@@ -9130,6 +9130,7 @@ setTimeout(maybeShowBackupReminder,800);
   };
   var ALARM_DAILY = 9101;      // distinct from every id the wrapper uses itself
   var ALARM_OVERDUE = 9102;
+  var NOTIF_COMPLETED = 9103;   // notification id for the instant "completed" ping
 
   function readLS(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
   function writeLS(key, value) { try { localStorage.setItem(key, value); return true; } catch (e) { return false; } }
@@ -9230,6 +9231,24 @@ setTimeout(maybeShowBackupReminder,800);
     } catch (e) { return []; }
   }
 
+  // Exactly the rows the Overdue screen shows (keep in sync with
+  // renderOverduePage): a missed revision belongs there only when its topic has
+  // NO pending revision due today - a topic that is both overdue and due today
+  // is today's work and is listed under Home > Overdue instead. Returned as
+  // items, so the count matches the banner the user reads on that screen.
+  function overdueSectionItems() {
+    var today = todayISO();
+    try {
+      var dueToday = {};
+      getItemsForDate(today).forEach(function (x) {
+        if (!x.revision.completedAt && !x.revision.clearedByLaterRevisionAt) dueToday[String(x.topic.id)] = 1;
+      });
+      return getAllDueItems(today).filter(function (x) {
+        return x.revision.dueDate < today && !dueToday[String(x.topic.id)];
+      });
+    } catch (e) { return []; }
+  }
+
   function durationOf(list) {
     return list.reduce(function (s, t) { return s + (Math.max(0, Number(t.duration)) || 0); }, 0);
   }
@@ -9250,22 +9269,22 @@ setTimeout(maybeShowBackupReminder,800);
     var due = topicsDueToday();
     if (flag(FLAG.daily, true) && due.length) {
       var mins = Math.round(durationOf(due));
-      var text = 'You have ' + due.length + (due.length === 1 ? ' topic' : ' topics') +
-        ' to revise today. Estimated revision time: ' + minsLong(mins) + '.';
-      var over = topicsOverdue().length;
-      if (over) text += ' ' + over + (over === 1 ? ' is' : ' are') + ' overdue from earlier.';
+      // One straight line: what is due today and how long it takes.
+      var text = due.length + (due.length === 1 ? ' topic' : ' topics') +
+        ' to revise today \u00b7 ' + minsLong(mins) + ' estimated.';
       call('scheduleAlarm', ALARM_DAILY, nextAt(flagTime(FLAG.dailyTime, '06:00')), 'Today\u2019s revisions', text);
     } else {
       call('cancelAlarm', ALARM_DAILY);
     }
 
-    var overdue = topicsOverdue();
-    if (flag(FLAG.overdue, false) && overdue.length) {
+    // The reminder fires on every enabled day, even with nothing overdue, so
+    // the user still gets the "No overdue topics." confirmation.
+    if (flag(FLAG.overdue, false)) {
+      var over = overdueSectionItems().length;
       call('scheduleAlarm', ALARM_OVERDUE, nextAt(flagTime(FLAG.overdueTime, '20:00')),
-        'Overdue revisions',
-        overdue.length + (overdue.length === 1 ? ' topic is' : ' topics are') +
-        ' past their revision date: ' + overdue.slice(0, 5).map(function (t) { return t.name; }).join(', ') +
-        (overdue.length > 5 ? ' \u2026' : ''));
+        'Overdue',
+        over ? over + (over === 1 ? ' topic overdue.' : ' topics overdue.')
+             : 'No overdue topics.');
     } else {
       call('cancelAlarm', ALARM_OVERDUE);
     }
@@ -9305,15 +9324,43 @@ setTimeout(maybeShowBackupReminder,800);
 
   // Wrap the app's existing actions without touching their bodies: each effect
   // plays only when its own state actually changed, exactly once.
+  // Per-topic completed counts, so a hook can tell WHICH topic changed -
+  // not merely that something did.
+  function completedByTopic() {
+    var map = {};
+    try {
+      state.topics.forEach(function (t) {
+        var n = 0;
+        (t.revisions || []).forEach(function (r) { if (r.completedAt) n++; });
+        map[String(t.id)] = { name: t.name, n: n };
+      });
+    } catch (e) { }
+    return map;
+  }
+
+  function newlyCompletedName(before) {
+    var after = completedByTopic();
+    var found = null;
+    Object.keys(after).forEach(function (id) {
+      if (found === null && after[id].n > ((before[id] && before[id].n) || 0)) found = after[id].name;
+    });
+    return found;
+  }
+
   function hookCompletions() {
     ['completeOpenTopic', 'completeRevisionDirect', 'completeOverdueRevision', 'setHomeRevisionStatus'].forEach(function (name) {
       var original = window[name];
       if (typeof original !== 'function') return;
       window[name] = function () {
-        var before = completedCount();
+        var before = completedByTopic();
         var out = original.apply(this, arguments);
         try {
-          if (soundOn() && completedCount() > before) call('playCompletionSound');
+          var topicName = newlyCompletedName(before);
+          if (topicName !== null) {
+            if (soundOn()) call('playCompletionSound');
+            // Instant panel notification, exactly once per real completion.
+            call('showNotification', NOTIF_COMPLETED, '\u2713 Completed', '"' + topicName + '"');
+          }
         } catch (e) { }
         return out;
       };
@@ -9485,7 +9532,8 @@ setTimeout(maybeShowBackupReminder,800);
     restore: restoreFromNative,
     reschedule: scheduleAlarmsNow,
     dueToday: topicsDueToday,
-    overdue: topicsOverdue
+    overdue: topicsOverdue,
+    overdueItems: overdueSectionItems
   };
 
   /* ------------------------------------------------------------- startup -- */
