@@ -5816,8 +5816,7 @@ html, body { width:100%; max-width:100%; overflow-x:hidden; }
         <div class="field"><label for="scheduleStopMode">STOP REPEATING AFTER</label><select id="scheduleStopMode" class="modal-input" onchange="stopModeChanged();renderSchedulePreview()"><option value="exam">Exam date</option><option value="date">On date</option></select></div>
         <div id="scheduleStopDateWrap" class="field hidden"><label for="scheduleStopDate">STOP DATE (BEFORE EXAM DATE)</label><input id="scheduleStopDate" type="date" class="modal-input" onchange="renderSchedulePreview()"></div>
         <div id="schedulePreview" class="schedule-preview"></div>
-        <div class="form-section-title">Telegram notes link</div>
-        <div class="field"><label for="topicTelegramLink">TELEGRAM LINK OR USERNAME</label><input id="topicTelegramLink" class="modal-input" type="text" inputmode="url" autocomplete="url" maxlength="500" placeholder="https://t.me/your_group_or_channel" aria-describedby="topicTelegramLinkHelp"><div class="small-muted" id="topicTelegramLinkHelp" style="margin-top:6px">Save a Telegram group, channel, message, or username link. The Telegram button on the topic opens this destination.</div></div>
+        <!-- Old "Telegram notes link" field removed: Telegram links are managed in the topic detail's Telegram Links card and live in topic.telegramLinks. -->
         <!-- Revision notes disclosure: collapsed by default to keep the Edit Topic form compact. Opening it reveals the existing note editor; this does not alter or defer note data. -->
         <details class="revision-notes-disclosure">
           <summary class="form-section-title">Revision notes <span class="revision-notes-disclosure-hint"><span class="disclosure-label">Tap to expand</span> <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3 6 5 5 5-5"/></svg></span></summary>
@@ -5868,11 +5867,8 @@ html, body { width:100%; max-width:100%; overflow-x:hidden; }
         <div id="detailBadges" class="detail-badges"></div>
         <div id="detailMeta" class="detail-topic-meta" style="display:none;"></div>
         
-        <!-- Telegram notes shortcut and revision history stay side by side. The shortcut is muted when no destination is saved. -->
+        <!-- Revision history card. The old per-topic Telegram icon is gone: Telegram links now live in their own permanent card directly below. -->
         <div class="detail-history-link-row">
-          <button type="button" id="detailTelegramNotesLink" class="telegram-notes-link is-disabled" onclick="openTelegramNotesLink(event)" aria-label="Telegram notes link not set" title="No Telegram notes link saved" aria-disabled="true">
-            <svg viewBox="0 0 48 48" aria-hidden="true" focusable="false"><circle cx="24" cy="24" r="22" fill="currentColor"/><path d="M35.2 13.9 30.8 34c-.33 1.42-1.18 1.77-2.39 1.1l-6.6-4.86-3.18 3.06c-.35.35-.64.64-1.31.64l.47-6.72 12.23-11.05c.53-.47-.12-.74-.82-.27L14.08 25.4l-6.48-2.03c-1.41-.44-1.44-1.41.3-2.1l25.35-9.77c1.17-.43 2.19.28 1.95 2.4Z" fill="#fff"/></svg>
-          </button>
           <div class="detail-history-column">
             <div class="detail-history-toggle" onclick="toggleRevisionHistory()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleRevisionHistory()}">
               <span style="display:inline-flex;align-items:center;gap:6px;"><svg viewBox="0 0 24 24" fill="none" style="width:15px;height:15px;color:#2563eb;"><rect x="3" y="4" width="18" height="17" rx="3" stroke="currentColor" stroke-width="2"/><path d="M7 2v4M17 2v4M3 9h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Revision history</span>
@@ -5881,6 +5877,19 @@ html, body { width:100%; max-width:100%; overflow-x:hidden; }
             </div>
             <div id="detailHistoryPanel" class="detail-history-panel hidden"></div>
           </div>
+        </div>
+
+        <!-- Permanent Telegram Links card: named entries (heading + optional link) stored inside the topic, so they travel with export/import. -->
+        <div class="tg-links-card" id="tgLinksCard">
+          <div class="tg-links-header" role="button" tabindex="0" onclick="toggleTelegramLinks(event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleTelegramLinks(event)}">
+            <span class="tg-links-title"><svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" fill="currentColor"/><path d="M35.2 13.9 30.8 34c-.33 1.42-1.18 1.77-2.39 1.1l-6.6-4.86-3.18 3.06c-.35.35-.64.64-1.31.64l.47-6.72 12.23-11.05c.53-.47-.12-.74-.82-.27L14.08 25.4l-6.48-2.03c-1.41-.44-1.44-1.41.3-2.1l25.35-9.77c1.17-.43 2.19.28 1.95 2.4Z" fill="#fff"/></svg>Telegram links</span>
+            <span class="tg-links-actions">
+              <button type="button" class="tg-add-btn" onclick="event.stopPropagation();openTelegramLinkSheet()" aria-label="Add Telegram link" title="Add Telegram link">+</button>
+              <span class="tg-count" id="tgLinksCount">0</span>
+              <svg class="tg-chevron" id="tgLinksChevron" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+          </div>
+          <div id="tgLinksPanel" class="tg-links-panel hidden"></div>
         </div>
       </div>
     </div>
@@ -5899,6 +5908,30 @@ html, body { width:100%; max-width:100%; overflow-x:hidden; }
 <!-- Small confirmation / revision date viewer. -->
 <div class="modal-backdrop subject-editor-backdrop" id="subjectEditorBackdrop" onclick="if(event.target===this)closeSubjectEditor()"><section class="subject-editor" role="dialog" aria-modal="true" aria-labelledby="subjectEditorTitle"><header class="subject-editor-head"><h2 id="subjectEditorTitle">Add subject</h2><span aria-hidden="true"></span></header><div class="subject-editor-body"><label class="subject-editor-label" for="subjectEditorName">SUBJECT NAME</label><input id="subjectEditorName" class="subject-editor-input" maxlength="50" placeholder="e.g. Modern History" autocomplete="off"><span class="subject-editor-label">SUBJECT COLOR</span><div id="subjectColorOptions" class="subject-color-options"></div><p id="subjectDeleteHelp" class="subject-delete-help" hidden></p><div class="subject-editor-foot"><button type="button" id="subjectDeleteBtn" class="subject-delete-btn" title="Delete subject" aria-label="Delete subject" onclick="deleteSubjectFromEditor()" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m4 4v6m6-6v6"/></svg></button><button type="button" class="subject-editor-cancel" onclick="closeSubjectEditor()">Cancel</button><button type="button" class="subject-editor-save" onclick="saveSubjectEditor()">Save subject</button></div></div></section></div>
 <div class="modal-backdrop" id="simpleModalBackdrop" onclick="backdropClose(event,'simpleModalBackdrop')"><div class="modal" role="dialog" aria-modal="true"><div class="modal-head"><div><h2 id="simpleModalTitle">Details</h2><p id="simpleModalSubtitle"></p></div><button class="icon-btn" onclick="closeModal('simpleModalBackdrop')">×</button></div><div class="modal-body" id="simpleModalBody"></div><div class="modal-foot"><button class="quiet-btn" onclick="closeModal('simpleModalBackdrop')">Close</button><div id="simpleModalActions"></div></div></div></div>
+<!-- Add / edit a Telegram link: compact bottom sheet over the topic detail. -->
+<div class="modal-backdrop tg-sheet-backdrop" id="tgLinkSheetBackdrop" onclick="if(event.target===this)closeTelegramLinkSheet()">
+  <section class="tg-sheet" role="dialog" aria-modal="true" aria-labelledby="tgSheetTitle">
+    <div class="tg-sheet-handle" aria-hidden="true"></div>
+    <header class="tg-sheet-head">
+      <span class="tg-sheet-logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.6 3.4 2.7 10.7c-1 .4-1 1.1-.2 1.4l4.8 1.5 1.9 5.6c.2.6.4.8 1 .8.5 0 .8-.3 1.2-.6l2.3-2.2 4.7 3.4c.9.5 1.5.2 1.7-.8l3-14.4c.3-1.1-.4-1.7-1.5-1.4Z"/></svg></span>
+      <h3 id="tgSheetTitle">Telegram</h3>
+      <div class="tg-sheet-menu-wrap">
+        <button type="button" class="tg-sheet-menu-btn" id="tgSheetMenuBtn" onclick="toggleTelegramSheetMenu(event)" aria-label="Telegram link options" aria-haspopup="true" aria-expanded="false">⋯</button>
+        <div class="tg-sheet-menu hidden" id="tgSheetMenu">
+          <button type="button" onclick="deleteTelegramLinkFromSheet()"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m4 4v6m6-6v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Delete</span></button>
+        </div>
+      </div>
+    </header>
+    <div class="tg-sheet-body">
+      <div class="tg-field"><label for="tgLinkHeading">Heading</label><input id="tgLinkHeading" type="text" maxlength="160" placeholder="Enter heading name" autocomplete="off" autocapitalize="words"></div>
+      <div class="tg-field"><label for="tgLinkUrl">Paste group link</label><input id="tgLinkUrl" type="text" inputmode="url" autocomplete="off" maxlength="500" placeholder="Paste your link"><p class="tg-sheet-hint">Leave the link empty to save a heading-only entry.</p></div>
+    </div>
+    <footer class="tg-sheet-foot">
+      <button type="button" class="quiet-btn" onclick="closeTelegramLinkSheet()">Cancel</button>
+      <button type="button" class="primary-btn" onclick="saveTelegramLink()">Save</button>
+    </footer>
+  </section>
+</div>
 <div class="toast-region" id="toastRegion" aria-live="polite"></div>
 
 <script>
@@ -6006,6 +6039,14 @@ function normalizeTopic(t){
   t.id=safeId(t.id||uid());
   t.name=typeof t.name==='string'?t.name:'Untitled topic';
   t.telegramLink=typeof t.telegramLink==='string'?t.telegramLink:'';
+  /* Telegram links v2: the single per-topic link became a list of named
+     entries. An old backup carries only telegramLink, so it is migrated into
+     the list once; the original value itself is left untouched. */
+  t.telegramLinks=Array.isArray(t.telegramLinks)?t.telegramLinks.filter(x=>x&&typeof x==='object'):[];
+  if(!t.telegramLinks.length&&t.telegramLink.trim()){
+    t.telegramLinks=[{id:uid(),heading:(typeof t.name==='string'&&t.name)?t.name:'Telegram link',url:t.telegramLink}];
+  }
+  t.telegramLinks=t.telegramLinks.map(x=>({id:safeId(x.id||uid()),heading:typeof x.heading==='string'?x.heading.slice(0,160):'',url:typeof x.url==='string'?x.url.slice(0,500):''})).filter(x=>x.heading.trim()||x.url.trim());
   t.notes=Array.isArray(t.notes)?t.notes:[];t.revisions=Array.isArray(t.revisions)?t.revisions:[];
   t.duration=Math.min(1440,Math.max(1,Math.round(Number(t.duration)||10)));
   t.initialDuration=(t.initialDuration===null||t.initialDuration===undefined||t.initialDuration==='')?null:Math.min(1440,Math.max(0,Math.round(Number(t.initialDuration)||0)));
@@ -7547,7 +7588,6 @@ function openTopicModal(id=null){
   document.getElementById('topicSubject').value=topic?.subject||state.subjects[0]||'';
   document.getElementById('topicDifficulty').value=topic?.difficulty||'Medium';
   document.getElementById('topicDuration').value=topic?.duration||10;
-  document.getElementById('topicTelegramLink').value=topic?.telegramLink||'';
   document.getElementById('topicStartDate').value=topic?.startDate||todayISO();
   document.getElementById('topicInitialDuration').value=topic?.initialDuration??'';
   const sched=topic?.schedule||scheduleConfigFromPreset('smart',state.settings.smartRevision?.Medium||[1,2,4],1,{difficulty:'Medium'});
@@ -7620,31 +7660,45 @@ function saveTopic(e){
   const existing=editingTopicId?findTopic(editingTopicId):null;
   if(existing){
     const scheduleChanged=JSON.stringify(existing.schedule)!==JSON.stringify(schedule)||existing.startDate!==startDate||existing.firstRevisionDate!==(document.getElementById('topicFirstRevision').value||'');
-    existing.name=name;existing.subject=document.getElementById('topicSubject').value;existing.difficulty=document.getElementById('topicDifficulty').value;
-    existing.telegramLink=document.getElementById('topicTelegramLink').value.trim();
+    existing.name=name;existing.subject=document.getElementById('topicSubject').value;    existing.difficulty=document.getElementById('topicDifficulty').value;
+
     existing.duration=Math.min(1440,Math.max(1,Math.round(Number(document.getElementById('topicDuration').value)||10)));existing.startDate=startDate;
     existing.initialDuration=document.getElementById('topicInitialDuration').value===''?null:Math.min(1440,Math.max(0,Math.round(Number(document.getElementById('topicInitialDuration').value)||0)));
     existing.schedule=schedule;existing.firstRevisionDate=document.getElementById('topicFirstRevision').value||'';existing.notes=cleanNotes;existing.updatedAt=new Date().toISOString();
     if(scheduleChanged)rescheduleFuture(existing);
     toast(scheduleChanged?'Topic updated; future revisions recalculated.':'Topic updated. Revision history preserved.');
   }else{
-    const topic={id:uid(),name,subject:document.getElementById('topicSubject').value,difficulty:document.getElementById('topicDifficulty').value,duration:Math.min(1440,Math.max(1,Math.round(Number(document.getElementById('topicDuration').value)||10))),startDate,initialDuration:document.getElementById('topicInitialDuration').value===''?null:Math.min(1440,Math.max(0,Math.round(Number(document.getElementById('topicInitialDuration').value)||0))),schedule,firstRevisionDate:document.getElementById('topicFirstRevision').value||'',telegramLink:document.getElementById('topicTelegramLink').value.trim(),notes:cleanNotes,revisions:[],createdAt:new Date().toISOString(),archived:false};
+    const topic={id:uid(),name,subject:document.getElementById('topicSubject').value,difficulty:document.getElementById('topicDifficulty').value,duration:Math.min(1440,Math.max(1,Math.round(Number(document.getElementById('topicDuration').value)||10))),startDate,initialDuration:document.getElementById('topicInitialDuration').value===''?null:Math.min(1440,Math.max(0,Math.round(Number(document.getElementById('topicInitialDuration').value)||0))),schedule,firstRevisionDate:document.getElementById('topicFirstRevision').value||'',telegramLinks:[],notes:cleanNotes,revisions:[],createdAt:new Date().toISOString(),archived:false};
     createRevisionInstances(topic,startDate);state.topics.push(topic);toast('Topic saved. Its revision schedule is ready.');
   }
   persist();window._reopenDetailAfterSave=!!window.returnToDetailAfterEdit;window.returnToDetailAfterEdit=false;closeModal('topicModalBackdrop');renderAll();if(window._reopenDetailAfterSave){window._reopenDetailAfterSave=false;const saved=findTopic(editingTopicId);if(saved)openTopicDetail(saved.id,window.openRevisionId||'')}
   bindTimerLongPress();
 }
-/* Telegram notes shortcut: the destination is stored on each topic, independent of revision history.
-   A blank value is intentionally shown as a muted/disabled-looking button. Accept Telegram URLs,
-   tg:// links, t.me paths, and @usernames; never invent a destination for an empty field. */
-function renderTelegramNotesLink(topic){
-  const button=document.getElementById('detailTelegramNotesLink');if(!button)return;
-  const saved=String(topic?.telegramLink||'').trim();
-  const enabled=!!saved;
-  button.classList.toggle('is-disabled',!enabled);
-  button.setAttribute('aria-disabled',enabled?'false':'true');
-  button.setAttribute('aria-label',enabled?'Open saved Telegram notes link':'Telegram notes link not set');
-  button.title=enabled?'Open saved Telegram notes link':'No Telegram notes link saved';
+/* ---- Telegram Links card -------------------------------------------------
+   A topic keeps named entries {id, heading, url}. The heading is required; the
+   URL is optional - a heading-only entry renders without an Open button and
+   with a plain source icon. Entries live inside the topic, so export/import and
+   every backup path carry them for free. */
+function telegramLinksOf(topic){return (topic&&Array.isArray(topic.telegramLinks))?topic.telegramLinks:[]}
+function tgChainIcon(){return '<svg class="tg-link-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M10.5 13.5a4.2 4.2 0 0 0 6.1.3l2.3-2.3a4.2 4.2 0 1 0-6-6l-1.3 1.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M13.5 10.5a4.2 4.2 0 0 0-6.1-.3l-2.3 2.3a4.2 4.2 0 1 0 6 6l1.3-1.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>'}
+function tgSourceIcon(){return '<svg class="tg-link-icon is-plain" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 3.5h8l4.5 4.5V20a.5.5 0 0 1-.5.5H6a.5.5 0 0 1-.5-.5V4a.5.5 0 0 1 .5-.5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M13.5 3.5V8H18M8.5 13h7M8.5 16.5h4.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>'}
+function tgPencilIcon(){return '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m14 5 5 5M4 20l4.2-.8L19 8.4a2.1 2.1 0 0 0-3-3L5.2 16.2 4 20Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>'}
+function tgExternalIcon(){return '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M14 4.5h5.5V10M19.5 4.5 12 12M17.5 14v4.5a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-11a1 1 0 0 1 1-1H10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'}
+function renderTelegramLinksCard(topic){
+  const countEl=document.getElementById('tgLinksCount'),panel=document.getElementById('tgLinksPanel');
+  const entries=telegramLinksOf(topic);
+  if(countEl)countEl.textContent=String(entries.length);
+  if(!panel)return;
+  if(!entries.length){panel.innerHTML='<div class="tg-empty">No Telegram links yet. Tap + to add one.</div>';return}
+  panel.innerHTML=entries.map(function(e){
+    const url=normalizeTelegramNotesDestination(e.url),heading=(e.heading||'').trim()||'Untitled';
+    const safeHeading=escapeHTML(heading);
+    return '<div class="tg-link-row'+(url?'':' has-note')+'">'+(url?tgChainIcon():tgSourceIcon())+
+      '<span class="tg-link-heading" title="'+safeHeading+'">'+safeHeading+'</span>'+
+      (url?'<button type="button" class="tg-open-btn" onclick="openTelegramLinkEntry(\''+e.id+'\')">Open'+tgExternalIcon()+'</button>':'')+
+      '<button type="button" class="tg-edit-btn" aria-label="Edit '+safeHeading+'" title="Edit link" onclick="openTelegramLinkSheet(null,\''+e.id+'\')">'+tgPencilIcon()+'</button>'+
+      '</div>';
+  }).join('');
 }
 function normalizeTelegramNotesDestination(value){
   let raw=String(value||'').trim();if(!raw)return '';
@@ -7657,23 +7711,112 @@ function normalizeTelegramNotesDestination(value){
   if(/^[A-Za-z0-9_]{4,64}$/.test(raw))return 'https://t.me/'+raw;
   return '';
 }
-function openTelegramNotesLink(event){
-  if(event){event.preventDefault();event.stopPropagation()}
-  const topic=findTopic(openTopicId);if(!topic)return;
-  const destination=normalizeTelegramNotesDestination(topic.telegramLink);
-  if(!destination){toast('Add a valid Telegram link or username in Edit topic first.');return}
-  // Inside the Android wrapper the link is handed to native code, which opens
-  // Telegram (or the system app chooser / a browser). A WebView must never
-  // navigate its own frame to t.me: that navigation is intercepted, the app
-  // reloads to Home and the user sees "File was not opened as a page".
+/* Open one saved entry. Inside the wrapper the link is handed to native code,
+   which opens Telegram (or the system chooser / browser): a WebView must never
+   navigate its own frame to t.me. A plain browser navigates directly. */
+function launchExternalDestination(destination){
   if(window.AndroidBridge&&typeof window.AndroidBridge.openExternalUrl==='function'){
     let opened=false;
     try{opened=!!window.AndroidBridge.openExternalUrl(destination)}catch(_){opened=false}
     if(!opened)toast('Could not open the Telegram link.','error');
     return;
   }
-  // Plain browser: navigate directly, exactly as before.
   try{window.location.assign(destination)}catch(_){toast('Could not open the Telegram link.','error')}
+}
+function openTelegramLinkEntry(entryId){
+  const topic=findTopic(openTopicId);if(!topic)return;
+  const entry=telegramLinksOf(topic).find(function(x){return x.id===entryId});
+  if(!entry)return;
+  const destination=normalizeTelegramNotesDestination(entry.url);
+  if(!destination){toast('This entry has no link. Tap the pencil to add one.');return}
+  launchExternalDestination(destination);
+}
+
+/* ---- expand / collapse --------------------------------------------------- */
+function setTelegramLinksOpen(open){
+  const card=document.getElementById('tgLinksCard'),panel=document.getElementById('tgLinksPanel');
+  if(!card||!panel)return;
+  panel.classList.toggle('hidden',!open);
+  card.classList.toggle('is-open',open);
+  if(open)collapseRevisionHistory();
+}
+function collapseTelegramLinks(){setTelegramLinksOpen(false)}
+function toggleTelegramLinks(event){
+  if(event){event.stopPropagation()}
+  const panel=document.getElementById('tgLinksPanel');if(!panel)return;
+  setTelegramLinksOpen(panel.classList.contains('hidden'));
+}
+function collapseRevisionHistory(){
+  const panel=document.getElementById('detailHistoryPanel'),toggle=document.querySelector('.detail-history-toggle');
+  if(!panel||!toggle)return;
+  if(panel.classList.contains('hidden'))return;
+  panel.classList.add('hidden');toggle.classList.remove('expanded');
+  document.querySelector('.detail-history-link-row')?.classList.remove('history-is-expanded');
+}
+/* Two cards must never stay open together, and neither survives a tap on
+   another section (Recall notes, the rest of the screen). */
+function collapseDetailDisclosures(except){
+  if(except!=='history')collapseRevisionHistory();
+  if(except!=='telegram')collapseTelegramLinks();
+}
+
+/* ---- add / edit sheet ---------------------------------------------------- */
+let tgSheetIndex=null;
+function openTelegramLinkSheet(event,entryId){
+  if(event){event.stopPropagation();event.preventDefault()}
+  const topic=findTopic(openTopicId);if(!topic)return;
+  const entries=telegramLinksOf(topic);
+  tgSheetIndex=entryId?entries.findIndex(function(x){return x.id===entryId}):-1;
+  const entry=tgSheetIndex>=0?entries[tgSheetIndex]:null;
+  document.getElementById('tgLinkHeading').value=entry?(entry.heading||''):'';
+  document.getElementById('tgLinkUrl').value=entry?(entry.url||''):'';
+  document.getElementById('tgSheetTitle').textContent=entry?'Telegram':'Telegram';
+  // Delete only exists for a saved entry.
+  document.getElementById('tgSheetMenuBtn').style.display=entry?'':'none';
+  hideTelegramSheetMenu();
+  document.getElementById('tgLinkSheetBackdrop').classList.add('open');
+  setTimeout(function(){const el=document.getElementById('tgLinkHeading');if(el)el.focus()},60);
+}
+function closeTelegramLinkSheet(){
+  const bd=document.getElementById('tgLinkSheetBackdrop');if(bd)bd.classList.remove('open');
+  hideTelegramSheetMenu();tgSheetIndex=null;
+}
+function toggleTelegramSheetMenu(event){
+  if(event){event.stopPropagation();event.preventDefault()}
+  document.getElementById('tgSheetMenu')?.classList.toggle('hidden');
+}
+function hideTelegramSheetMenu(){
+  document.getElementById('tgSheetMenu')?.classList.add('hidden');
+  document.getElementById('tgSheetMenuBtn')?.setAttribute('aria-expanded','false');
+}
+function saveTelegramLink(){
+  const topic=findTopic(openTopicId);if(!topic)return;
+  const heading=document.getElementById('tgLinkHeading').value.trim();
+  const url=document.getElementById('tgLinkUrl').value.trim();
+  if(!heading){toast('Enter a heading name.','error');return}
+  if(url&&!normalizeTelegramNotesDestination(url)){toast('That does not look like a valid Telegram link.','error');return}
+  const list=telegramLinksOf(topic).slice();
+  if(tgSheetIndex>=0&&list[tgSheetIndex]){
+    list[tgSheetIndex]={id:list[tgSheetIndex].id,heading:heading.slice(0,160),url:url.slice(0,500)};
+    toast('Telegram link updated.');
+  }else{
+    list.push({id:uid(),heading:heading.slice(0,160),url:url.slice(0,500)});
+    toast(url?'Telegram link saved.':'Heading saved.');
+  }
+  topic.telegramLinks=list;
+  persist();renderTelegramLinksCard(topic);
+  closeTelegramLinkSheet();
+}
+function deleteTelegramLinkFromSheet(){
+  const topic=findTopic(openTopicId);if(!topic)return;
+  const list=telegramLinksOf(topic).slice();
+  if(!(tgSheetIndex>=0&&list[tgSheetIndex])){closeTelegramLinkSheet();return}
+  const label=(list[tgSheetIndex].heading||'this entry').trim();
+  if(!window.confirm('Delete "'+label+'"? This cannot be undone.'))return;
+  list.splice(tgSheetIndex,1);
+  topic.telegramLinks=list;
+  persist();renderTelegramLinksCard(topic);
+  closeTelegramLinkSheet();toast('Telegram link deleted.');
 }
 
 function openTopicDetail(topicId,revisionId=''){
@@ -7687,7 +7830,7 @@ function openTopicDetail(topicId,revisionId=''){
   window.openRevisionId=selected.id||'';
   
   document.getElementById('detailTopicName').textContent=topic.name;
-  renderTelegramNotesLink(topic);
+  renderTelegramLinksCard(topic);
 
   const durValEl = document.getElementById('detailDurationVal');
   if (durValEl) durValEl.textContent = minsLabel(topic.duration);
@@ -8128,9 +8271,8 @@ function toggleRevisionHistory(){
   if(!panel||!toggle)return;
   const opening=panel.classList.contains('hidden');
   panel.classList.toggle('hidden',!opening);toggle.classList.toggle('expanded',opening);
-  // Keep the Telegram shortcut out of the layout while history is expanded. This deliberately returns the history card to its pre-Telegram full-width layout; collapsing restores the shortcut.
-  const row=document.querySelector('.detail-history-link-row');
-  if(row)row.classList.toggle('history-is-expanded',opening);
+  // The Telegram Links card must not stay open next to an expanded history.
+  if(opening)collapseTelegramLinks();
   const topic=findTopic(openTopicId);if(topic)renderHistoryPreview(topic,forecastCount(topic));if(opening)showTopicHistory();
 }
 function editEstimatedDuration(event){
@@ -8803,7 +8945,7 @@ function toast(message,type='success'){
   while(host.children.length>3){const oldest=host.firstElementChild;if(oldest&&oldest!==el){clearTimeout(oldest._toastTimer);oldest.remove()}else break}
 }
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){hideDoneMenu();hideNotesMenu();document.querySelectorAll('#noteEditors .note-actions-menu').forEach(m=>m.classList.add('hidden'));document.querySelectorAll('#noteEditors .note-menu-btn').forEach(b=>b.setAttribute('aria-expanded','false'));document.querySelectorAll('.modal-backdrop.open:not(#backupReminderBackdrop)').forEach(m=>closeModal(m.id))}});
-document.addEventListener('click',e=>{if(!e.target.closest('.note-menu-wrap')){document.querySelectorAll('#noteEditors .note-actions-menu').forEach(m=>m.classList.add('hidden'));document.querySelectorAll('#noteEditors .note-menu-btn').forEach(b=>b.setAttribute('aria-expanded','false'))}if(!e.target.closest('.done-menu-wrap'))hideDoneMenu();if(!e.target.closest('.notes-menu-wrap'))hideNotesMenu();if(!e.target.closest('.overdue-mark-wrap'))hideOverduePopovers();const hist=document.querySelector('.detail-history-toggle'),panel=document.getElementById('detailHistoryPanel');if(hist&&panel&&!panel.classList.contains('hidden')&&!e.target.closest('.detail-history-toggle')&&!e.target.closest('#detailHistoryPanel')){panel.classList.add('hidden');hist.classList.remove('expanded');document.querySelector('.detail-history-link-row')?.classList.remove('history-is-expanded')}});
+document.addEventListener('click',e=>{if(!e.target.closest('.note-menu-wrap')){document.querySelectorAll('#noteEditors .note-actions-menu').forEach(m=>m.classList.add('hidden'));document.querySelectorAll('#noteEditors .note-menu-btn').forEach(b=>b.setAttribute('aria-expanded','false'))}if(!e.target.closest('.done-menu-wrap'))hideDoneMenu();if(!e.target.closest('.notes-menu-wrap'))hideNotesMenu();if(!e.target.closest('.overdue-mark-wrap'))hideOverduePopovers();const hist=document.querySelector('.detail-history-toggle'),panel=document.getElementById('detailHistoryPanel');if(hist&&panel&&!panel.classList.contains('hidden')&&!e.target.closest('.detail-history-toggle')&&!e.target.closest('#detailHistoryPanel')){panel.classList.add('hidden');hist.classList.remove('expanded');document.querySelector('.detail-history-link-row')?.classList.remove('history-is-expanded')}if(!e.target.closest('#tgLinksCard'))collapseTelegramLinks();});
 document.addEventListener('change',e=>{if(e.target.id==='topicStartDate'||e.target.id==='topicFirstRevision')renderSchedulePreview()});
 
 
@@ -9084,6 +9226,69 @@ setTimeout(maybeShowBackupReminder,800);
 [data-theme=dark] .backup-reminder-icon{background:#152947}
 [data-theme=dark] .backup-reminder-badge{background:#152947;color:#8fc5ff}
 @media(max-width:380px){.backup-reminder-card{padding:22px 14px 16px}.backup-reminder-cancel{font-size:12px}.backup-reminder-export{font-size:13px}}
+</style>
+
+<style id="telegram-links-styles">
+/* Telegram Links card (topic detail) - sits directly under Revision history. */
+.tg-links-card{margin-top:8px;border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden}
+.tg-links-header{display:flex;align-items:center;gap:9px;padding:8px 10px;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent}
+.tg-links-header:active{background:var(--surface-2)}
+.tg-links-title{display:inline-flex;align-items:center;gap:7px;flex:1;min-width:0;font-size:12px;font-weight:850;color:#1d63d1;letter-spacing:-.01em}
+.tg-links-title svg{width:16px;height:16px;flex:none;color:#229ED9}
+.tg-links-actions{display:inline-flex;align-items:center;gap:6px;flex:none}
+.tg-add-btn{width:24px;height:24px;border-radius:7px;border:1px solid var(--line-strong);background:var(--surface-2);color:#1d63d1;font:inherit;font-size:15px;font-weight:800;line-height:1;display:grid;place-items:center;cursor:pointer;padding:0}
+.tg-add-btn:active{transform:scale(.94)}
+.tg-count{min-width:20px;padding:2px 7px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);font-size:10px;font-weight:800;color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
+.tg-chevron{width:15px;height:15px;flex:none;color:var(--muted);transition:transform .18s}
+.tg-links-card.is-open .tg-chevron{transform:rotate(180deg)}
+.tg-links-panel{border-top:1px solid var(--line);background:var(--surface);padding:6px;display:grid;gap:5px}
+.tg-links-panel.hidden{display:none}
+.tg-link-row{display:flex;align-items:center;gap:8px;padding:7px 8px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);min-height:38px}
+.tg-link-icon{width:15px;height:15px;flex:none;color:#229ED9}
+.tg-link-icon.is-plain{color:var(--muted)}
+.tg-link-heading{flex:1;min-width:0;font-size:12.5px;font-weight:750;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tg-open-btn{display:inline-flex;align-items:center;gap:4px;flex:none;padding:6px 9px;border-radius:8px;border:1px solid #b9d9fb;background:#e8f1ff;color:#1d63d1;font:inherit;font-size:10.5px;font-weight:800;cursor:pointer}
+.tg-open-btn svg{width:11px;height:11px}
+.tg-open-btn:active{transform:scale(.96)}
+.tg-edit-btn{width:27px;height:27px;flex:none;border-radius:8px;border:1px solid var(--line-strong);background:var(--surface);color:var(--muted);display:grid;place-items:center;cursor:pointer;padding:0}
+.tg-edit-btn svg{width:13px;height:13px}
+.tg-link-row.has-note{background:var(--surface);border-style:dashed}
+.tg-empty{font-size:11px;font-weight:650;color:var(--muted);padding:3px 2px}
+[data-theme="dark"] .tg-links-title{color:#8fc5ff}
+[data-theme="dark"] .tg-add-btn{color:#8fc5ff}
+[data-theme="dark"] .tg-open-btn{background:#152947;border-color:#2a4a76;color:#8fc5ff}
+
+/* Compact Revision history: the card used to be too tall and spacious. */
+#detailModalBackdrop .detail-history-toggle{margin-top:8px!important;padding:7px 9px!important;gap:8px;border-radius:11px!important;min-height:0}
+#detailModalBackdrop .detail-history-panel{padding:6px!important;gap:5px;max-height:132px}
+.detail-history-link-row{margin:8px 0 0!important;gap:0!important}
+@media(max-width:600px){#detailModalBackdrop .detail-history-toggle{font-size:10.5px}}
+
+/* Add / edit Telegram link - compact bottom sheet. */
+.modal-backdrop.tg-sheet-backdrop{z-index:130;align-items:flex-end;padding:0}
+.tg-sheet{width:100%;max-width:560px;background:var(--surface);color:var(--text);border-radius:22px 22px 0 0;border-top:1px solid var(--line-strong);box-shadow:0 -14px 40px rgba(10,20,35,.3);padding:8px 16px calc(14px + env(safe-area-inset-bottom,0px));animation:tgSheetUp .22s ease}
+@keyframes tgSheetUp{from{transform:translateY(22px);opacity:.35}to{transform:none;opacity:1}}
+.tg-sheet-handle{width:38px;height:4px;border-radius:999px;background:var(--line-strong);margin:2px auto 10px}
+.tg-sheet-head{display:flex;align-items:center;gap:9px;position:relative}
+.tg-sheet-logo{width:30px;height:30px;flex:none;border-radius:50%;background:#229ED9;color:#fff;display:grid;place-items:center}
+.tg-sheet-logo svg{width:18px;height:18px}
+.tg-sheet-head h3{flex:1;min-width:0;margin:0;font-size:15.5px;font-weight:850;letter-spacing:-.02em;color:var(--text)}
+.tg-sheet-menu-wrap{position:relative;flex:none}
+.tg-sheet-menu-btn{width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:var(--surface-2);color:var(--muted);font-size:17px;line-height:1;display:grid;place-items:center;cursor:pointer;padding:0}
+.tg-sheet-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:6;min-width:132px;padding:5px;background:var(--surface);border:1px solid var(--line-strong);border-radius:12px;box-shadow:0 12px 32px rgba(18,32,52,.22)}
+.tg-sheet-menu.hidden{display:none}
+.tg-sheet-menu button{display:flex;align-items:center;gap:7px;width:100%;border:0;background:transparent;border-radius:8px;padding:9px 10px;font:inherit;font-size:12.5px;font-weight:800;color:#d33;cursor:pointer}
+.tg-sheet-menu button svg{width:14px;height:14px}
+.tg-sheet-menu button:active{background:rgba(211,51,51,.08)}
+.tg-sheet-body{display:grid;gap:7px;padding:13px 0 2px}
+.tg-sheet-body .tg-field{display:grid;gap:6px}
+.tg-sheet-body label{font-size:10px;font-weight:800;letter-spacing:.07em;color:var(--muted)}
+.tg-sheet-body input{width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid var(--line-strong);border-radius:12px;background:var(--surface-2);color:var(--text);font:inherit;font-size:14px}
+.tg-sheet-body input::placeholder{color:var(--muted);opacity:.85}
+.tg-sheet-body input:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.16)}
+.tg-sheet-hint{font-size:10.5px;color:var(--muted);margin:0}
+.tg-sheet-foot{display:flex;gap:9px;padding-top:13px}
+.tg-sheet-foot .quiet-btn,.tg-sheet-foot .primary-btn{flex:1;padding:11px 10px;font-size:13.5px;justify-content:center;text-align:center}
 </style>
 
 <script>

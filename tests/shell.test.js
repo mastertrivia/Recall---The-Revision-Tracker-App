@@ -486,52 +486,144 @@ const renderSettingsUI = (win) => win.eval("(function(){try{renderBackupReminder
   win.shell.toggleSound(); // leave it as found
   check('no page errors after the sound flow', h.pageErrors.length === 0, 0, h.pageErrors.slice(0, 2).join(' | '));
 
-  // ------------------------------------------------------ telegram link --
-  suite('Telegram shortcut opens through the wrapper');
+  // ------------------------------------------------------ telegram links --
+  suite('Telegram links card (v2)');
   const tgTopic = appState(win).topics[0];
-  win.eval(`openTopicId = ${JSON.stringify(String(tgTopic.id))}`);
-
-  tgTopic.telegramLink = 'https://t.me/recall_notes';
-  calls(h).length = 0;
-  win.eval('openTelegramNotesLink(null)');
-  const tgCall = lastCall(h, 'openExternalUrl');
-  check('link is handed to Android instead of navigating the WebView',
-    !!tgCall && tgCall[1] === 'https://t.me/recall_notes',
-    'https://t.me/recall_notes', tgCall ? tgCall[1] : 'no bridge call');
-  check('the app frame is never told to navigate itself',
-    countCalls(h, 'openExternalUrl') === 1, 1, countCalls(h, 'openExternalUrl'));
-
-  tgTopic.telegramLink = '@recall_group';
-  win.eval('openTelegramNotesLink(null)');
-  const userCall = lastCall(h, 'openExternalUrl');
-  check('a bare username becomes a t.me link before hand-off',
-    !!userCall && userCall[1] === 'https://t.me/recall_group',
-    'https://t.me/recall_group', userCall ? userCall[1] : 'none');
-
-  tgTopic.telegramLink = 'tg://resolve?domain=recall_group';
-  win.eval('openTelegramNotesLink(null)');
-  const deepCall = lastCall(h, 'openExternalUrl');
-  check('tg:// deep links are handed over untouched',
-    !!deepCall && deepCall[1] === 'tg://resolve?domain=recall_group',
-    'tg://resolve?domain=recall_group', deepCall ? deepCall[1] : 'none');
-
-  // Native refuses -> an error toast, never a navigation or a silent nothing.
-  const realOpen = win.AndroidBridge.openExternalUrl;
-  win.AndroidBridge.openExternalUrl = () => false;
-  win.eval('openTelegramNotesLink(null)');
-  const errToast = win.document.querySelector('#toastRegion .toast-error .toast-message');
-  check('a refused hand-off shows an error toast',
-    !!errToast && errToast.textContent === 'Could not open the Telegram link.',
-    'Could not open the Telegram link.', errToast ? errToast.textContent : 'no toast');
-  win.AndroidBridge.openExternalUrl = realOpen;
-
-  calls(h).length = 0;
-  tgTopic.telegramLink = '   ';
-  win.eval('openTelegramNotesLink(null)');
-  check('an empty link never reaches Android',
-    lastCall(h, 'openExternalUrl') === null, true, false);
   tgTopic.telegramLink = '';
-  check('no page errors after the Telegram flow',
+  tgTopic.telegramLinks = [
+    { id: 'tg1', heading: 'Raja Ram Mohan Roy', url: 'https://t.me/rrmroy' },
+    { id: 'tg2', heading: 'Arya Samaj', url: '@arya_samaj' },
+    { id: 'tg3', heading: 'General source', url: '' }
+  ];
+  win.eval(`openTopicDetail(${JSON.stringify(String(tgTopic.id))})`);
+
+  check('old Telegram icon is gone from the detail screen',
+    !win.document.getElementById('detailTelegramNotesLink'), true,
+    !!win.document.getElementById('detailTelegramNotesLink'));
+  check('old Telegram field is gone from Edit topic',
+    !win.document.getElementById('topicTelegramLink'), true,
+    !!win.document.getElementById('topicTelegramLink'));
+
+  const tgCountEl = win.document.getElementById('tgLinksCount');
+  check('counter shows every saved link',
+    !!tgCountEl && tgCountEl.textContent === '3', '3', tgCountEl ? tgCountEl.textContent : 'missing');
+  const rows = win.document.querySelectorAll('#tgLinksPanel .tg-link-row');
+  check('all entries render as rows', rows.length === 3, 3, rows.length);
+  check('linked entry shows chain icon + Open button',
+    !!rows[0] && !!rows[0].querySelector('.tg-open-btn') &&
+    !!rows[0].querySelector('svg.tg-link-icon:not(.is-plain)'), true, false);
+  check('heading-only entry hides Open and uses the plain icon',
+    !!rows[2] && !rows[2].querySelector('.tg-open-btn') &&
+    !!rows[2].querySelector('svg.tg-link-icon.is-plain'), true, false);
+
+  calls(h).length = 0;
+  win.eval(`openTelegramLinkEntry('tg1')`);
+  let openCall = lastCall(h, 'openExternalUrl');
+  check('Open hands a t.me link to Android',
+    !!openCall && openCall[1] === 'https://t.me/rrmroy',
+    'https://t.me/rrmroy', openCall ? openCall[1] : 'none');
+  win.eval(`openTelegramLinkEntry('tg2')`);
+  openCall = lastCall(h, 'openExternalUrl');
+  check('a bare username is normalized before hand-off',
+    !!openCall && openCall[1] === 'https://t.me/arya_samaj',
+    'https://t.me/arya_samaj', openCall ? openCall[1] : 'none');
+  const handoffsBefore = countCalls(h, 'openExternalUrl');
+  win.eval(`openTelegramLinkEntry('tg3')`);
+  check('heading-only entry never reaches Android',
+    countCalls(h, 'openExternalUrl') === handoffsBefore, handoffsBefore,
+    countCalls(h, 'openExternalUrl'));
+
+  // ---- add through the bottom sheet ----
+  const sheetOpen = () => win.document.getElementById('tgLinkSheetBackdrop').classList.contains('open');
+  win.eval('openTelegramLinkSheet()');
+  check('sheet opens for a new entry', sheetOpen(), true, false);
+  check('Delete is hidden while adding',
+    win.document.getElementById('tgSheetMenuBtn').style.display === 'none', 'none',
+    win.document.getElementById('tgSheetMenuBtn').style.display);
+  win.document.getElementById('tgLinkHeading').value = 'New group';
+  win.document.getElementById('tgLinkUrl').value = 'nonsense://url';
+  win.eval('saveTelegramLink()');
+  check('an invalid link is refused and nothing is saved',
+    tgTopic.telegramLinks.length === 3 && sheetOpen(), true,
+    tgTopic.telegramLinks.length + ' / open=' + sheetOpen());
+  win.document.getElementById('tgLinkUrl').value = 'https://t.me/new_group';
+  win.eval('saveTelegramLink()');
+  check('valid entry is saved with heading and link',
+    tgTopic.telegramLinks.length === 4 && tgTopic.telegramLinks[3].heading === 'New group' &&
+    tgTopic.telegramLinks[3].url === 'https://t.me/new_group', true, JSON.stringify(tgTopic.telegramLinks[3] || null));
+  check('sheet closes after saving', !sheetOpen(), false, true);
+  check('counter updates after saving',
+    tgCountEl.textContent === '4', '4', tgCountEl.textContent);
+  const persistedLinks = JSON.parse(win.localStorage.getItem('recall_topic_revision_studio_v1') || '{}')
+    .topics.find(t => String(t.id) === String(tgTopic.id));
+  check('saved links persist in storage (export/import source)',
+    !!persistedLinks && persistedLinks.telegramLinks.length === 4, 4,
+    persistedLinks ? persistedLinks.telegramLinks.length : 'topic missing');
+
+  // heading-only entry
+  win.eval('openTelegramLinkSheet()');
+  win.document.getElementById('tgLinkHeading').value = 'Reference book';
+  win.document.getElementById('tgLinkUrl').value = '';
+  win.eval('saveTelegramLink()');
+  const lastRow = win.document.querySelectorAll('#tgLinksPanel .tg-link-row')[4];
+  check('heading-only entry saves without a link',
+    tgTopic.telegramLinks.length === 5 && !!lastRow && !lastRow.querySelector('.tg-open-btn'), true,
+    tgTopic.telegramLinks.length + ' / open=' + !!(lastRow && lastRow.querySelector('.tg-open-btn')));
+
+  // ---- edit + delete ----
+  win.eval(`openTelegramLinkSheet(null, 'tg1')`);
+  check('edit prefills the saved values',
+    win.document.getElementById('tgLinkHeading').value === 'Raja Ram Mohan Roy' &&
+    win.document.getElementById('tgLinkUrl').value === 'https://t.me/rrmroy', true,
+    win.document.getElementById('tgLinkHeading').value + ' / ' + win.document.getElementById('tgLinkUrl').value);
+  check('Delete is offered for a saved entry',
+    win.document.getElementById('tgSheetMenuBtn').style.display !== 'none', true, 'none');
+  win.document.getElementById('tgLinkHeading').value = 'Renamed heading';
+  win.eval('saveTelegramLink()');
+  check('editing keeps the entry position and id',
+    tgTopic.telegramLinks[0].id === 'tg1' && tgTopic.telegramLinks[0].heading === 'Renamed heading', true,
+    tgTopic.telegramLinks[0].id + '/' + tgTopic.telegramLinks[0].heading);
+
+  const realConfirm = win.confirm;
+  win.confirm = () => true;
+  win.eval(`openTelegramLinkSheet(null, 'tg2')`);
+  win.eval('deleteTelegramLinkFromSheet()');
+  win.confirm = realConfirm;
+  check('delete removes only the selected entry',
+    tgTopic.telegramLinks.length === 4 && !tgTopic.telegramLinks.some(x => x.id === 'tg2'), true,
+    tgTopic.telegramLinks.length + '/' + tgTopic.telegramLinks.map(x => x.id).join(','));
+  check('counter updates after deleting', tgCountEl.textContent === '4', '4', tgCountEl.textContent);
+  check('sheet closed after deleting', !sheetOpen(), false, true);
+
+  // ---- legacy single link migrates into the list ----
+  const legacy = appState(win).topics[1];
+  legacy.telegramLink = 'https://t.me/legacy_group';
+  delete legacy.telegramLinks;
+  win.eval('state.topics = state.topics.map(normalizeTopic)');
+  check('old telegramLink is migrated into telegramLinks',
+    Array.isArray(legacy.telegramLinks) && legacy.telegramLinks.length === 1 &&
+    legacy.telegramLinks[0].url === 'https://t.me/legacy_group', true,
+    JSON.stringify(legacy.telegramLinks || null));
+  check('legacy value itself is preserved',
+    legacy.telegramLink === 'https://t.me/legacy_group', 'https://t.me/legacy_group', legacy.telegramLink);
+
+  // ---- only one card open at a time ----
+  win.eval(`openTopicDetail(${JSON.stringify(String(tgTopic.id))})`);
+  win.eval('toggleTelegramLinks(null)');
+  const tgOpen = () => !win.document.getElementById('tgLinksPanel').classList.contains('hidden');
+  const histOpen = () => !win.document.getElementById('detailHistoryPanel').classList.contains('hidden');
+  check('Telegram card expands', tgOpen(), true, false);
+  win.eval('toggleRevisionHistory()');
+  check('opening Revision history collapses Telegram links',
+    histOpen() && !tgOpen(), true, 'hist=' + histOpen() + ' tg=' + tgOpen());
+  win.eval('toggleTelegramLinks(null)');
+  check('opening Telegram links collapses Revision history',
+    tgOpen() && !histOpen(), true, 'tg=' + tgOpen() + ' hist=' + histOpen());
+  win.eval(`document.body.dispatchEvent(new MouseEvent('click',{bubbles:true}))`);
+  check('a tap outside collapses the open card',
+    !tgOpen(), false, tgOpen());
+
+  check('no page errors after the Telegram flows',
     h.pageErrors.length === 0, 0, h.pageErrors.slice(0, 2).join(' | '));
 
   // -------------------------------------------------------------- summary --
