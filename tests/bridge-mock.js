@@ -70,6 +70,16 @@ function makeBridge(win, opts = {}) {
       rec('openExternalUrl', [url]);
       return true;
     },
+    // Export folder (Settings): empty string = the default picker/Downloads flow.
+    getExportFolder: () => (typeof opts.exportFolder === 'string' ? opts.exportFolder : ''),
+    chooseExportFolder: () => {
+      rec('chooseExportFolder', []);
+      return true;
+    },
+    exportCsv: (name, content) => {
+      rec('exportCsv', [name, content]);
+      return true;
+    },
     showPersistentNotification: (id, title, text) => rec('showPersistentNotification', [id, title, text]),
     showReviewNotification: (id, title, text) => rec('showReviewNotification', [id, title, text]),
     cancelNotification: (id) => rec('cancelNotification', [id]),

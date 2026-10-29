@@ -174,6 +174,36 @@ class MainActivity : AppCompatActivity() {
             if (uri != null) writeCurrentHtmlTo(uri)
         }
 
+    // Export folder (Settings -> Data management). The user picks a directory
+    // once with ACTION_OPEN_DOCUMENT_TREE; we persist that tree Uri (read + write
+    // permission included) so every export lands in that folder without asking
+    // again. An empty value keeps the classic behaviour: file picker, then
+    // Downloads as the picker-free fallback.
+    private val exportFolderLauncher =
+        registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+            if (uri == null) return@registerForActivityResult
+            try {
+                contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                )
+                Flags.setString(this, "exportFolderUri", uri.toString())
+                notifyJs("exportFolderChanged", JSONObject().put("label", exportFolderLabel() ?: "").toString())
+                toast("Export folder set: ${exportFolderLabel() ?: "chosen folder"}", force = true)
+            } catch (e: Exception) {
+                ErrorLog.log(this, "exportFolderLauncher", e.message ?: "unknown")
+                toast("Could not use that folder: ${e.message}", force = true)
+            }
+        }
+
+    // CSV export (Topics -> Export topics .csv) needs the same folder handling,
+    // because a WebView blob download never reaches Android's storage at all.
+    private var pendingCsv: String = ""
+    private val exportCsvLauncher =
+        registerForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+            if (uri != null) writeTextTo(uri, pendingCsv, "CSV")
+        }
+
     /** Guards against showing the load-failure dialog repeatedly. */
     private var recoveryDialogShowing = false
 
@@ -1076,6 +1106,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun launchExportBackup() {
+        // A folder chosen in Settings wins: write straight into it, no picker.
+        createInExportFolder("recall-backup.json", "application/json")?.let { uri ->
+            writeBackupTo(uri)
+            return
+        }
         // Primary: suggest the JSON MIME type. Fallback 1: generic type for
         // pickers that reject "application/json". Fallback 2 (v2.2): no picker
         // at all - write straight into the public Downloads folder via
@@ -1096,7 +1131,7 @@ class MainActivity : AppCompatActivity() {
     /** Picker-free export path: writes the backup into public Downloads. */
     private fun exportBackupToDownloads() {
         try {
-            val name = "goal-tracker-backup-${System.currentTimeMillis()}.json"
+            val name = "recall-backup-${System.currentTimeMillis()}.json"
             val uri: Uri? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val values = android.content.ContentValues().apply {
                     put(android.provider.MediaStore.Downloads.DISPLAY_NAME, name)
@@ -1110,7 +1145,7 @@ class MainActivity : AppCompatActivity() {
                 val dir = android.os.Environment.getExternalStoragePublicDirectory(
                     android.os.Environment.DIRECTORY_DOWNLOADS
                 ).apply { mkdirs() }
-                Uri.fromFile(File(dir, name))
+                Uri.fromFile(uniqueFile(dir, name))
             }
             if (uri == null) {
                 toast("Export failed: no file picker and Downloads unavailable", force = true)
@@ -1136,17 +1171,32 @@ class MainActivity : AppCompatActivity() {
     // ---------- Save current HTML (v4.11) ----------
 
     fun launchExportCurrentHtml() {
+        // Same rule as the backup: an explicitly chosen folder is honoured first.
+        val name = htmlFileName()
+        createInExportFolder(name, "text/html")?.let { uri ->
+            writeCurrentHtmlTo(uri)
+            return
+        }
         if (safeLaunch("launchExportCurrentHtml") {
-                exportHtmlLauncher.launch("goal-tracker-app.html")
+                exportHtmlLauncher.launch(name)
             }
         ) return
         exportCurrentHtmlToDownloads()
     }
 
+    /** "recall_2026-10-29.html" - Recall branding plus today's date, no time. */
+    private fun htmlFileName(): String = "recall_${todayStamp()}.html"
+
+    private fun todayStamp(): String = try {
+        java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+    } catch (_: Exception) {
+        "export"
+    }
+
     /** Picker-free export path: writes the running HTML into public Downloads. */
     private fun exportCurrentHtmlToDownloads() {
         try {
-            val name = "goal-tracker-app-${System.currentTimeMillis()}.html"
+            val name = htmlFileName()
             val uri: Uri? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val values = android.content.ContentValues().apply {
                     put(android.provider.MediaStore.Downloads.DISPLAY_NAME, name)
@@ -1160,7 +1210,7 @@ class MainActivity : AppCompatActivity() {
                 val dir = android.os.Environment.getExternalStoragePublicDirectory(
                     android.os.Environment.DIRECTORY_DOWNLOADS
                 ).apply { mkdirs() }
-                Uri.fromFile(File(dir, name))
+                Uri.fromFile(uniqueFile(dir, name))
             }
             if (uri == null) {
                 toast("Save failed: no file picker and Downloads unavailable", force = true)
@@ -1171,6 +1221,130 @@ class MainActivity : AppCompatActivity() {
             ErrorLog.log(this, "exportCurrentHtmlToDownloads", e.message ?: e.javaClass.simpleName)
             toast("Save failed: ${e.message}", force = true)
         }
+    }
+
+    // ---------- Export folder (Settings) ----------
+
+    /** The persisted tree Uri, or null when the default flow should be used. */
+    private fun exportFolderUri(): Uri? {
+        val raw = Flags.getString(this, "exportFolderUri", "")
+        if (raw.isEmpty()) return null
+        return try { Uri.parse(raw) } catch (e: Exception) { null }
+    }
+
+    /** Human label for the chosen folder (e.g. "Download/Recall"), or null. */
+    fun exportFolderLabel(): String? {
+        val uri = exportFolderUri() ?: return null
+        val seg = uri.lastPathSegment ?: return null
+        val label = seg.substringAfter(':').substringAfterLast('/')
+        return label.ifEmpty { seg }
+    }
+
+    /** Lets the user pick the folder every export should be written into. */
+    fun chooseExportFolder() {
+        val ok = safeLaunch("chooseExportFolder") { exportFolderLauncher.launch(null) }
+        if (!ok) toast("Folder picker unavailable on this device", force = true)
+    }
+
+    /**
+     * Creates [name] inside the chosen folder and returns its Uri, or null when
+     * no folder is configured (or the permission was revoked, in which case the
+     * stored value is cleared so the app falls back to the picker next time).
+     */
+    private fun createInExportFolder(name: String, mime: String): Uri? {
+        val tree = exportFolderUri() ?: return null
+        return try {
+            val docId = android.provider.DocumentsContract.getTreeDocumentId(tree)
+            val unique = uniqueNameInTree(tree, docId, name)
+            android.provider.DocumentsContract.createDocument(contentResolver, tree, mime, unique)
+        } catch (e: Exception) {
+            ErrorLog.log(this, "createInExportFolder", e.message ?: "unknown")
+            Flags.setString(this, "exportFolderUri", "")
+            toast("Export folder is no longer accessible - using the file picker.", force = true)
+            null
+        }
+    }
+
+    /** Appends " (2)", " (3)" ... so a second export never overwrites the first. */
+    private fun uniqueNameInTree(tree: Uri, docId: String, wanted: String): String {
+        val existing = HashSet<String>()
+        try {
+            contentResolver.query(
+                android.provider.DocumentsContract.buildChildDocumentsUriUsingTree(tree, docId),
+                arrayOf(android.provider.DocumentsContract.Document.COLUMN_DISPLAY_NAME),
+                null, null, null
+            )?.use { c ->
+                while (c.moveToNext()) c.getString(0)?.let { existing.add(it.lowercase()) }
+            }
+        } catch (_: Exception) {
+        }
+        if (!existing.contains(wanted.lowercase())) return wanted
+        val dot = wanted.lastIndexOf('.')
+        val base = if (dot > 0) wanted.substring(0, dot) else wanted
+        val ext = if (dot > 0) wanted.substring(dot) else ""
+        var i = 2
+        while (existing.contains("$base ($i)$ext".lowercase())) i++
+        return "$base ($i)$ext"
+    }
+
+    private fun writeTextTo(uri: Uri, text: String, what: String) {
+        try {
+            contentResolver.openOutputStream(uri)?.use { it.write(text.toByteArray()) }
+                ?: throw IllegalStateException("cannot open $uri")
+            toast("$what saved: ${uri.lastPathSegment?.substringAfterLast('/') ?: "file"}")
+        } catch (e: Exception) {
+            ErrorLog.log(this, "writeTextTo", e.message ?: "unknown")
+            toast("$what export failed: ${e.message}", force = true)
+        }
+    }
+
+    /**
+     * CSV export. The HTML used to hand a Blob to an anchor click, which a
+     * WebView silently drops - so the file never appeared anywhere. Native now
+     * owns the write: chosen folder first, picker second, Downloads last.
+     */
+    fun launchExportCsv(filename: String, content: String) {
+        pendingCsv = content
+        createInExportFolder(filename, "text/csv")?.let { uri ->
+            writeTextTo(uri, content, "CSV")
+            return
+        }
+        if (safeLaunch("launchExportCsv") { exportCsvLauncher.launch(filename) }) return
+        try {
+            val values = android.content.ContentValues().apply {
+                put(android.provider.MediaStore.Downloads.DISPLAY_NAME, filename)
+                put(android.provider.MediaStore.Downloads.MIME_TYPE, "text/csv")
+            }
+            val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                contentResolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+            } else {
+                @Suppress("DEPRECATION")
+                val dir = android.os.Environment.getExternalStoragePublicDirectory(
+                    android.os.Environment.DIRECTORY_DOWNLOADS
+                ).apply { mkdirs() }
+                Uri.fromFile(uniqueFile(dir, filename))
+            }
+            if (uri == null) {
+                toast("CSV export failed: no picker and Downloads unavailable", force = true)
+                return
+            }
+            writeTextTo(uri, content, "CSV")
+        } catch (e: Exception) {
+            ErrorLog.log(this, "launchExportCsv", e.message ?: "unknown")
+            toast("CSV export failed: ${e.message}", force = true)
+        }
+    }
+
+    /** A free file name in a plain directory (pre-Android 10 fallback path). */
+    private fun uniqueFile(dir: File, wanted: String): File {
+        val target = File(dir, wanted)
+        if (!target.exists()) return target
+        val dot = wanted.lastIndexOf('.')
+        val base = if (dot > 0) wanted.substring(0, dot) else wanted
+        val ext = if (dot > 0) wanted.substring(dot) else ""
+        var i = 2
+        while (File(dir, "$base ($i)$ext").exists()) i++
+        return File(dir, "$base ($i)$ext")
     }
 
     private fun writeCurrentHtmlTo(uri: Uri) {

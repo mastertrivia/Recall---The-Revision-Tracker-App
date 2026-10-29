@@ -626,6 +626,43 @@ const renderSettingsUI = (win) => win.eval("(function(){try{renderBackupReminder
   check('no page errors after the Telegram flows',
     h.pageErrors.length === 0, 0, h.pageErrors.slice(0, 2).join(' | '));
 
+  // ------------------------------------------------------ export folder --
+  suite('Export folder + native CSV');
+  const folderRow = () => win.document.getElementById('exportFolderRow');
+  const folderLabel = () => win.document.getElementById('exportFolderLabel');
+  check('export folder row is visible inside the wrapper',
+    folderRow() && folderRow().style.display !== 'none', true,
+    folderRow() ? folderRow().style.display : 'missing');
+  check('defaults to the Downloads flow',
+    folderLabel().textContent === 'Downloads (default)', 'Downloads (default)', folderLabel().textContent);
+
+  calls(h).length = 0;
+  win.eval('shell.chooseExportFolder()');
+  check('Change opens the native folder picker',
+    countCalls(h, 'chooseExportFolder') === 1, 1, countCalls(h, 'chooseExportFolder'));
+
+  win.AndroidBridge.getExportFolder = () => 'Download/Recall';
+  win.eval('shell.refreshExportFolder()');
+  check('the chosen folder is shown in Settings',
+    folderLabel().textContent === 'Download/Recall', 'Download/Recall', folderLabel().textContent);
+  win.AndroidBridge.getExportFolder = () => '';
+  win.eval(`window.onAndroidEvent('exportFolderChanged', {})`);
+  check('the folder-change event refreshes the label',
+    folderLabel().textContent === 'Downloads (default)', 'Downloads (default)', folderLabel().textContent);
+
+  // CSV used to go through an <a download> blob, which a WebView drops.
+  calls(h).length = 0;
+  win.eval('exportCSV()');
+  const csvCall = lastCall(h, 'exportCsv');
+  check('CSV is handed to the wrapper instead of a blob download',
+    !!csvCall && /^recall-topics-\d{4}-\d{2}-\d{2}\.csv$/.test(csvCall[1]),
+    'recall-topics-YYYY-MM-DD.csv', csvCall ? csvCall[1] : 'no call');
+  check('CSV payload carries the header row',
+    !!csvCall && csvCall[2].indexOf('"Topic","Subject"') === 0, true,
+    csvCall ? String(csvCall[2]).slice(0, 24) : 'none');
+  check('no page errors after the export folder flow',
+    h.pageErrors.length === 0, 0, h.pageErrors.slice(0, 2).join(' | '));
+
   // -------------------------------------------------------------- summary --
   console.log('\n=== summary ===');
   const fails = results.filter(r => !r.pass);

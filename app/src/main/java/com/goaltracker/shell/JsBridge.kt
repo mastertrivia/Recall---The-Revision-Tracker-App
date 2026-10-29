@@ -246,6 +246,38 @@ class JsBridge(private val activity: MainActivity) {
         safeUi("exportBackup") { activity.showExportBackupFlow() }
     }
 
+    /**
+     * Folder every export is written into, as chosen in Settings.
+     * @return the folder label (e.g. "Download/Recall"), or "" for the default
+     * flow (file picker, then Downloads).
+     */
+    @JavascriptInterface
+    fun getExportFolder(): String = safe("getExportFolder", "") {
+        activity.exportFolderLabel() ?: ""
+    }
+
+    /** Opens the system folder picker so the user can change the target. */
+    @JavascriptInterface
+    fun chooseExportFolder() {
+        safeUi("chooseExportFolder") { activity.chooseExportFolder() }
+    }
+
+    /**
+     * Writes a CSV straight to storage. A WebView Blob download is dropped on
+     * the floor, so without this the "Export topics (.csv)" button produced no
+     * file at all inside the wrapper.
+     */
+    @JavascriptInterface
+    fun exportCsv(filename: String, content: String) {
+        safeUi("exportCsv") {
+            // Keep the .html/.csv extension intact: safeKey() would turn the dot
+            // into an underscore, so the name is sanitised here instead.
+            val clean = filename.replace(Regex("[^A-Za-z0-9._-]"), "_")
+                .trim('.').take(120).ifEmpty { "recall-topics.csv" }
+            activity.launchExportCsv(clean, content)
+        }
+    }
+
     /** Native typed-confirmation dialog first, then the file picker (v4.11). */
     @JavascriptInterface
     fun importBackup() {

@@ -5706,7 +5706,7 @@ html, body { width:100%; max-width:100%; overflow-x:hidden; }
         </div>
         <div class="card settings-card"><h3>All Other Settings</h3><p class="card-desc">These defaults prefill new topics only. Existing topic schedules will not be overwritten.</p><div class="field"><label for="defaultPreset">DEFAULT SCHEDULE</label><select id="defaultPreset" onchange="saveDefaults()"><option value="days">Every X days</option><option value="weekdays">Weekdays</option><option value="months">Every X months</option><option value="smart">Smart Revision</option><option value="custom">Custom intervals</option></select></div><div class="field"><label for="dayStartAt">DAY STARTS AT</label><select id="dayStartAt" onchange="saveDefaults()"><option value="0">12:00 AM (midnight)</option><option value="1">1:00 AM</option><option value="2">2:00 AM</option><option value="3">3:00 AM</option><option value="4">4:00 AM</option><option value="5">5:00 AM</option></select><p class="helper">The study day changes at this time. Sessions before it belong to the previous study day.</p></div><div class="field"><label for="toastDurationSec">TOAST DURATION</label><select id="toastDurationSec" onchange="saveToastDuration()"><option value="0.5">0.5 seconds</option><option value="1">1 second</option><option value="1.5">1.5 seconds</option><option value="2">2 seconds</option><option value="2.5">2.5 seconds</option><option value="3">3 seconds</option></select><p class="helper">Choose how long success and error messages stay visible.</p></div><div class="switch-row"><div class="switch-copy"><strong>Light / dark appearance</strong><span>Choose the theme that feels comfortable for long study sessions.</span></div><button class="switch" id="themeSwitch" onclick="toggleTheme()" aria-label="Toggle theme"><span></span></button></div></div>
         <div class="card settings-card"><h3>Smart Revision</h3><p class="card-desc">Define a preset custom interval sequence for each difficulty. Topics using Smart Revision follow the matching sequence and cannot edit it inside the topic form.</p><div class="field smart-interval-field"><label for="smartEasyIntervals"><span class="difficulty-chip difficulty-easy">Easy</span><span>INTERVALS IN DAYS</span></label><input id="smartEasyIntervals" class="modal-input" placeholder="1, 3, 5" oninput="saveSmartIntervals(false)" onchange="saveSmartIntervals(true)"><small class="small-muted" id="smartEasySummary" aria-live="polite"></small></div><div class="field smart-interval-field"><label for="smartMediumIntervals"><span class="difficulty-chip difficulty-medium">Medium</span><span>INTERVALS IN DAYS</span></label><input id="smartMediumIntervals" class="modal-input" placeholder="1, 2, 4" oninput="saveSmartIntervals(false)" onchange="saveSmartIntervals(true)"><small class="small-muted" id="smartMediumSummary" aria-live="polite"></small></div><div class="field smart-interval-field"><label for="smartHardIntervals"><span class="difficulty-chip difficulty-hard">Hard</span><span>INTERVALS IN DAYS</span></label><input id="smartHardIntervals" class="modal-input" placeholder="1, 2, 3" oninput="saveSmartIntervals(false)" onchange="saveSmartIntervals(true)"><small class="small-muted" id="smartHardSummary" aria-live="polite"></small></div><p class="helper">Use whole numbers from 1 to 365 separated by commas. The last interval repeats continuously.</p></div>
-        <div class="card settings-card"><h3>Data management</h3><p class="card-desc">Your data is stored in this browser on this device. Export backups regularly before clearing browser data or moving devices.</p><div class="settings-actions"><button class="primary-btn" onclick="exportData()">Export backup (.json)</button><button class="secondary-btn" onclick="document.getElementById('importFile').click()">Import backup</button><input id="importFile" type="file" accept=".json,application/json" class="hidden" onchange="importData(event)"><button class="secondary-btn" onclick="exportCSV()">Export topics (.csv)</button></div><div class="settings-actions"><button class="secondary-btn" onclick="shell.exportData()">Android backup</button><button class="secondary-btn" onclick="shell.importData()">Restore Android backup</button><span class="small-muted" id="shellBackupStatus">Not mirrored to the Android wrapper yet.</span></div><div style="height:14px"></div><div class="switch-row"><div class="switch-copy"><strong>Local-first storage</strong><span>Topics, notes, schedules, and completion history stay in browser storage. No account or server is required.</span></div><span class="tag complete">On device</span></div><div style="margin-top:14px"><button class="danger-btn" onclick="resetApp()">Reset all app data</button></div></div>
+        <div class="card settings-card"><h3>Data management</h3><p class="card-desc">Your data is stored in this browser on this device. Export backups regularly before clearing browser data or moving devices.</p><div class="settings-actions"><button class="primary-btn" onclick="exportData()">Export backup (.json)</button><button class="secondary-btn" onclick="document.getElementById('importFile').click()">Import backup</button><input id="importFile" type="file" accept=".json,application/json" class="hidden" onchange="importData(event)"><button class="secondary-btn" onclick="exportCSV()">Export topics (.csv)</button></div><div class="switch-row" id="exportFolderRow" style="margin-top:4px"><div class="switch-copy"><strong>Export folder</strong><span id="exportFolderLabel">Downloads (default)</span></div><button class="secondary-btn" onclick="shell.chooseExportFolder()">Change</button></div><div class="settings-actions"><button class="secondary-btn" onclick="shell.exportData()">Android backup</button><button class="secondary-btn" onclick="shell.importData()">Restore Android backup</button><span class="small-muted" id="shellBackupStatus">Not mirrored to the Android wrapper yet.</span></div><div style="height:14px"></div><div class="switch-row"><div class="switch-copy"><strong>Local-first storage</strong><span>Topics, notes, schedules, and completion history stay in browser storage. No account or server is required.</span></div><span class="tag complete">On device</span></div><div style="margin-top:14px"><button class="danger-btn" onclick="resetApp()">Reset all app data</button></div></div>
         <!-- ===== Recall × Android shell settings (injected into #page-settings) ===== -->
 
 <div class="card settings-card">
@@ -8782,7 +8782,16 @@ function exportCSV(){
   const rows=[['Topic','Subject','Difficulty','Estimated minutes','Initial study date','Created at','Next revision','Revisions completed','Revisions planned before exam','Notes']];
   state.topics.forEach(t=>rows.push([t.name,t.subject,t.difficulty,t.duration,t.startDate,t.createdAt||'',nextRevision(t)?.dueDate||'',(t.revisions||[]).filter(r=>r.completedAt).length,forecastCount(t)??'',(t.notes||[]).map(n=>`${n.title}: ${n.body}`).join(' | ')]));
   const csv=rows.map(row=>row.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\r\n');
-  downloadBlob(new Blob([csv],{type:'text/csv;charset=utf-8'}),`recall-topics-${todayISO()}.csv`);toast('Topics exported as CSV.');
+  const name=`recall-topics-${todayISO()}.csv`;
+  // Inside the wrapper a WebView silently drops Blob downloads, so Android
+  // writes the file itself - chosen export folder first, then picker/Downloads.
+  if(window.AndroidBridge&&typeof window.AndroidBridge.exportCsv==='function'){
+    let ok=false;
+    try{ok=!!window.AndroidBridge.exportCsv(name,csv)}catch(_){ok=false}
+    if(!ok)toast('Could not export the CSV.','error');
+    return;
+  }
+  downloadBlob(new Blob([csv],{type:'text/csv;charset=utf-8'}),name);toast('Topics exported as CSV.');
 }
 function downloadBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 function importData(e){
@@ -9617,6 +9626,7 @@ setTimeout(maybeShowBackupReminder,800);
         return;
       }
       if (name === 'notificationPermission') return;
+      if (name === 'exportFolderChanged') { renderExportFolder(); return; }
     } catch (e) { console.warn('[shell] event ' + name + ' failed', e); }
   };
 
@@ -9699,6 +9709,19 @@ setTimeout(maybeShowBackupReminder,800);
     setSwitch('soundSwitch', flag(FLAG.sound, true));
     renderDisplayLevels();
     renderBridgeStatus();
+    renderExportFolder();
+  }
+
+  /* Export folder: shows where every export is written and lets the user
+     change it. Hidden in a plain browser, where there is no folder to pick. */
+  function renderExportFolder() {
+    var row = document.getElementById('exportFolderRow');
+    var label = document.getElementById('exportFolderLabel');
+    if (!row || !label) return;
+    if (!available) { row.style.display = 'none'; return; }
+    row.style.display = '';
+    var folder = call('getExportFolder');
+    label.textContent = (typeof folder === 'string' && folder) ? folder : 'Downloads (default)';
   }
 
   /* Public surface used by the injected Settings markup. */
@@ -9719,6 +9742,8 @@ setTimeout(maybeShowBackupReminder,800);
       call('exportBackup');
     },
     importData: function () { call('importBackup'); },
+    chooseExportFolder: function () { call('chooseExportFolder'); },
+    refreshExportFolder: renderExportFolder,
 
     toggleDailySummary: function () {
       var next = !flag(FLAG.daily, true);
