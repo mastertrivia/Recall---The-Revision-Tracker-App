@@ -66,6 +66,10 @@ function makeBridge(win, opts = {}) {
     requestNotificationPermission: () => rec('requestNotificationPermission', []),
 
     showNotification: (id, title, text) => rec('showNotification', [id, title, text]),
+    openExternalUrl: (url) => {
+      rec('openExternalUrl', [url]);
+      return true;
+    },
     showPersistentNotification: (id, title, text) => rec('showPersistentNotification', [id, title, text]),
     showReviewNotification: (id, title, text) => rec('showReviewNotification', [id, title, text]),
     cancelNotification: (id) => rec('cancelNotification', [id]),

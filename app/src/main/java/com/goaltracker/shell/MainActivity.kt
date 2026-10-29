@@ -244,6 +244,21 @@ class MainActivity : AppCompatActivity() {
                         uri.host == "appassets.androidplatform.net" &&
                         (uri.path ?: "").startsWith("/app/")
                     if (!isInternalApp) {
+                        val scheme = uri.scheme?.lowercase() ?: ""
+                        val isAssetHost = uri.host == "appassets.androidplatform.net"
+                        // A genuine external link (the Telegram shortcut, a web
+                        // URL) goes to Android: the WebView stays exactly where
+                        // it is, so the user is never bounced back to Home with
+                        // "File was not opened as a page". The trusted asset host
+                        // keeps its old block - it is app data, never a document
+                        // to hand to another app.
+                        val isExternalLink = !isAssetHost &&
+                            (scheme == "http" || scheme == "https" || scheme == "tg")
+                        if (isExternalLink) {
+                            ErrorLog.log(this@MainActivity, "WebView.externalNavigation", uri.toString())
+                            openExternalUri(uri)
+                            return true
+                        }
                         ErrorLog.log(
                             this@MainActivity,
                             "WebView.blockedMainFrameNavigation",
@@ -465,6 +480,44 @@ class MainActivity : AppCompatActivity() {
         .put("useWideViewPort", cachedUseWideViewPort ?: false)
         .put("loadWithOverviewMode", cachedLoadWithOverviewMode ?: false)
         .put("textZoom", cachedTextZoom ?: -1)
+
+    /**
+     * Opens an external link outside the WebView: the Telegram app first when
+     * it can handle a t.me / tg:// link, otherwise the system chooser with a
+     * browser fallback. Mirrors JsBridge.openExternalUrl so the Telegram
+     * shortcut works whether the HTML calls the bridge or navigates directly.
+     */
+    private fun openExternalUri(uri: Uri) {
+        try {
+            val wantsTelegram = (uri.scheme ?: "").equals("tg", ignoreCase = true) ||
+                (uri.host ?: "").endsWith("t.me", ignoreCase = true)
+            if (wantsTelegram) {
+                val packages = listOf(
+                    "org.telegram.messenger",
+                    "org.telegram.messenger.beta",
+                    "org.telegram.messenger.web"
+                )
+                for (pkg in packages) {
+                    val appIntent = Intent(Intent.ACTION_VIEW, uri).apply {
+                        setPackage(pkg)
+                        addCategory(Intent.CATEGORY_BROWSABLE)
+                    }
+                    if (appIntent.resolveActivity(packageManager) == null) continue
+                    try {
+                        startActivity(appIntent)
+                        return
+                    } catch (e: Exception) {
+                        ErrorLog.log(this, "MainActivity.openExternalUri", e.message ?: pkg)
+                        // fall through to the chooser instead of giving up
+                    }
+                }
+            }
+            startActivity(Intent.createChooser(Intent(Intent.ACTION_VIEW, uri), "Open with"))
+        } catch (e: Exception) {
+            ErrorLog.log(this, "MainActivity.openExternalUri", e.message ?: "unknown")
+            toast("Could not open the link.", force = true)
+        }
+    }
 
     private fun loadApp() {
         recoveryDialogShowing = false

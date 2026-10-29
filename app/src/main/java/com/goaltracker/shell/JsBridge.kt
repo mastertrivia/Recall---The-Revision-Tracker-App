@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
+import android.net.Uri
 import android.media.MediaPlayer
 import android.os.Build
 import android.os.SystemClock
@@ -121,6 +122,76 @@ class JsBridge(private val activity: MainActivity) {
         safeUi("showToastLong") {
             Toast.makeText(activity, message, Toast.LENGTH_LONG).show()
         }
+    }
+
+    // ---------------- External links ----------------
+
+    /**
+     * Telegram app packages tried first so a t.me / tg:// link opens in
+     * Telegram itself instead of a browser tab. The manifest declares them in
+     * <queries>, otherwise Android 11+ package visibility would hide them and
+     * resolveActivity() would always answer "not installed".
+     */
+    private val telegramPackages = listOf(
+        "org.telegram.messenger",
+        "org.telegram.messenger.beta",
+        "org.telegram.messenger.web"
+    )
+
+    /**
+     * Hand an external link (https://t.me/..., tg://, any http(s) URL) to Android.
+     *
+     * The WebView must never navigate its own frame away from the app: a
+     * main-frame jump to t.me used to be intercepted by shouldOverrideUrlLoading,
+     * which reloaded the app back to Home and flashed "File was not opened as a
+     * page". The link is opened from the Activity instead - the Telegram app first
+     * when it can handle the link, otherwise a system chooser / browser fallback.
+     *
+     * @return true when Android was asked to open the link.
+     */
+    @JavascriptInterface
+    fun openExternalUrl(url: String): Boolean = safe("openExternalUrl", false) {
+        val uri = try {
+            Uri.parse(url.trim())
+        } catch (e: Exception) {
+            null
+        } ?: return@safe false
+
+        // Only well-known external schemes - never file://, content:// or
+        // javascript:, which would hand internal data to another app.
+        val scheme = uri.scheme?.lowercase() ?: ""
+        if (scheme != "http" && scheme != "https" && scheme != "tg") return@safe false
+
+        val wantsTelegram = scheme == "tg" || (uri.host ?: "").endsWith("t.me", ignoreCase = true)
+        if (wantsTelegram) {
+            for (pkg in telegramPackages) {
+                val appIntent = Intent(Intent.ACTION_VIEW, uri).apply {
+                    setPackage(pkg)
+                    addCategory(Intent.CATEGORY_BROWSABLE)
+                }
+                val resolvable = try {
+                    appIntent.resolveActivity(activity.packageManager) != null
+                } catch (e: Exception) {
+                    false
+                }
+                if (!resolvable) continue
+                try {
+                    activity.startActivity(appIntent)
+                    return@safe true
+                } catch (e: Exception) {
+                    ErrorLog.log(activity, "JsBridge.openExternalUrl", e.message ?: pkg)
+                    // fall through to the chooser instead of giving up
+                }
+            }
+        }
+
+        // Fallback: any browser / app that can open the link. createChooser
+        // always resolves to something when a browser exists, and shows the
+        // system app picker when several apps claim the URL.
+        activity.startActivity(
+            Intent.createChooser(Intent(Intent.ACTION_VIEW, uri), "Open with")
+        )
+        true
     }
 
     // ---------------- Data: JSON files in internal storage ----------------

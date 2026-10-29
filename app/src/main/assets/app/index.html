@@ -7662,8 +7662,17 @@ function openTelegramNotesLink(event){
   const topic=findTopic(openTopicId);if(!topic)return;
   const destination=normalizeTelegramNotesDestination(topic.telegramLink);
   if(!destination){toast('Add a valid Telegram link or username in Edit topic first.');return}
-  // Navigate directly to the Telegram destination so Android can hand a t.me/tg:// link to Telegram.
-  // Avoid window.open(): mobile WebViews may block it, and noopener can make a successful open return null.
+  // Inside the Android wrapper the link is handed to native code, which opens
+  // Telegram (or the system app chooser / a browser). A WebView must never
+  // navigate its own frame to t.me: that navigation is intercepted, the app
+  // reloads to Home and the user sees "File was not opened as a page".
+  if(window.AndroidBridge&&typeof window.AndroidBridge.openExternalUrl==='function'){
+    let opened=false;
+    try{opened=!!window.AndroidBridge.openExternalUrl(destination)}catch(_){opened=false}
+    if(!opened)toast('Could not open the Telegram link.','error');
+    return;
+  }
+  // Plain browser: navigate directly, exactly as before.
   try{window.location.assign(destination)}catch(_){toast('Could not open the Telegram link.','error')}
 }
 

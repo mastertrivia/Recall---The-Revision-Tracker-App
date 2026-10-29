@@ -486,6 +486,54 @@ const renderSettingsUI = (win) => win.eval("(function(){try{renderBackupReminder
   win.shell.toggleSound(); // leave it as found
   check('no page errors after the sound flow', h.pageErrors.length === 0, 0, h.pageErrors.slice(0, 2).join(' | '));
 
+  // ------------------------------------------------------ telegram link --
+  suite('Telegram shortcut opens through the wrapper');
+  const tgTopic = appState(win).topics[0];
+  win.eval(`openTopicId = ${JSON.stringify(String(tgTopic.id))}`);
+
+  tgTopic.telegramLink = 'https://t.me/recall_notes';
+  calls(h).length = 0;
+  win.eval('openTelegramNotesLink(null)');
+  const tgCall = lastCall(h, 'openExternalUrl');
+  check('link is handed to Android instead of navigating the WebView',
+    !!tgCall && tgCall[1] === 'https://t.me/recall_notes',
+    'https://t.me/recall_notes', tgCall ? tgCall[1] : 'no bridge call');
+  check('the app frame is never told to navigate itself',
+    countCalls(h, 'openExternalUrl') === 1, 1, countCalls(h, 'openExternalUrl'));
+
+  tgTopic.telegramLink = '@recall_group';
+  win.eval('openTelegramNotesLink(null)');
+  const userCall = lastCall(h, 'openExternalUrl');
+  check('a bare username becomes a t.me link before hand-off',
+    !!userCall && userCall[1] === 'https://t.me/recall_group',
+    'https://t.me/recall_group', userCall ? userCall[1] : 'none');
+
+  tgTopic.telegramLink = 'tg://resolve?domain=recall_group';
+  win.eval('openTelegramNotesLink(null)');
+  const deepCall = lastCall(h, 'openExternalUrl');
+  check('tg:// deep links are handed over untouched',
+    !!deepCall && deepCall[1] === 'tg://resolve?domain=recall_group',
+    'tg://resolve?domain=recall_group', deepCall ? deepCall[1] : 'none');
+
+  // Native refuses -> an error toast, never a navigation or a silent nothing.
+  const realOpen = win.AndroidBridge.openExternalUrl;
+  win.AndroidBridge.openExternalUrl = () => false;
+  win.eval('openTelegramNotesLink(null)');
+  const errToast = win.document.querySelector('#toastRegion .toast-error .toast-message');
+  check('a refused hand-off shows an error toast',
+    !!errToast && errToast.textContent === 'Could not open the Telegram link.',
+    'Could not open the Telegram link.', errToast ? errToast.textContent : 'no toast');
+  win.AndroidBridge.openExternalUrl = realOpen;
+
+  calls(h).length = 0;
+  tgTopic.telegramLink = '   ';
+  win.eval('openTelegramNotesLink(null)');
+  check('an empty link never reaches Android',
+    lastCall(h, 'openExternalUrl') === null, true, false);
+  tgTopic.telegramLink = '';
+  check('no page errors after the Telegram flow',
+    h.pageErrors.length === 0, 0, h.pageErrors.slice(0, 2).join(' | '));
+
   // -------------------------------------------------------------- summary --
   console.log('\n=== summary ===');
   const fails = results.filter(r => !r.pass);

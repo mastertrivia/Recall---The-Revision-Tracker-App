@@ -18,6 +18,27 @@
     <!-- MediaPlayer.setWakeMode keeps scheduled alarm audio alive for its duration -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
+    <!-- External link handling (the Telegram shortcut on a topic). Android 11+
+         hides other installed apps unless they are declared here, which made
+         resolveActivity() return null and the link open nowhere. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="tg" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="http" />
+        </intent>
+        <package android:name="org.telegram.messenger" />
+        <package android:name="org.telegram.messenger.beta" />
+        <package android:name="org.telegram.messenger.web" />
+    </queries>
+
     <application
         android:name=".ShellApp"
         android:label="@string/app_name"
