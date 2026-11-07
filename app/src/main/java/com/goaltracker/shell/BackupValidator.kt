@@ -21,6 +21,14 @@ object BackupValidator {
     /** Key the Recall HTML mirrors its revision state into (see the HTML sync layer). */
     const val CORE_KEY = "recall_state"
 
+    /**
+     * Data keys become FILE NAMES in the wrapper's data directory, so only the shape
+     * native storage itself writes is accepted. Anything else (path separators,
+     * traversal, empty or overlong names) is rejected before a file is touched - an
+     * imported key like `../../evil` must never escape the staging directory.
+     */
+    private val SAFE_KEY = Regex("^[A-Za-z0-9_-]{1,64}$")
+
     /** FNV-1a 32-bit, hex. Must match the JS implementation exactly. */
     fun fnv1a32(s: String): String {
         var h = -2128831035 // 0x811c9dc5 as signed Int
@@ -58,6 +66,9 @@ object BackupValidator {
         //    looks like JSON must parse (catches truncated/garbled contents).
         val entries = LinkedHashMap<String, String>()
         for (key in data.keys()) {
+            if (!SAFE_KEY.matches(key)) {
+                throw IllegalArgumentException("backup contains an unsafe field name")
+            }
             val v = data.opt(key)
                 ?: throw IllegalArgumentException("field '$key' is empty")
             if (v !is String) {

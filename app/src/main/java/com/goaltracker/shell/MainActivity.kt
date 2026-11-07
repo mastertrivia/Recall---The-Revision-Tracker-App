@@ -90,7 +90,7 @@ class MainActivity : AppCompatActivity() {
 
     private val importBackupLauncher =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-            if (uri != null) restoreBackupFrom(uri)
+            if (uri != null) restoreBackupFrom(uri) else notifyJs("backupImportCancelled", "null")
         }
 
     // v2.3: "Choose from device" - the system ringtone/alarm picker. Requires
@@ -1106,8 +1106,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun launchExportBackup() {
+        // One name for every export route, dated like the browser export so a day's
+        // backups are identifiable and a later export cannot overwrite an earlier one.
+        val name = BackupNaming.fileName()
         // A folder chosen in Settings wins: write straight into it, no picker.
-        createInExportFolder("recall-backup.json", "application/json")?.let { uri ->
+        createInExportFolder(name, "application/json")?.let { uri ->
             writeBackupTo(uri)
             return
         }
@@ -1118,11 +1121,11 @@ class MainActivity : AppCompatActivity() {
         // Android 10+. This makes export work even on devices whose
         // documents provider is disabled (the "no file picker" case).
         if (safeLaunch("launchExportBackup") {
-                exportBackupLauncher.launch("recall-backup.json")
+                exportBackupLauncher.launch(name)
             }
         ) return
         if (safeLaunch("launchExportBackup.fallback") {
-                exportBackupFallbackLauncher.launch("recall-backup.json")
+                exportBackupFallbackLauncher.launch(name)
             }
         ) return
         exportBackupToDownloads()
@@ -1131,7 +1134,9 @@ class MainActivity : AppCompatActivity() {
     /** Picker-free export path: writes the backup into public Downloads. */
     private fun exportBackupToDownloads() {
         try {
-            val name = "recall-backup-${System.currentTimeMillis()}.json"
+            // Same dated name as every other route; MediaStore appends " (1)" instead of
+            // overwriting when a file with this name already exists in Downloads.
+            val name = BackupNaming.fileName()
             val uri: Uri? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val values = android.content.ContentValues().apply {
                     put(android.provider.MediaStore.Downloads.DISPLAY_NAME, name)
@@ -1162,10 +1167,17 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun launchImportBackup() {
+        // Tell the HTML an import is in flight before the picker opens: a mirror that
+        // was already scheduled could otherwise run after the restore and overwrite the
+        // freshly restored files with the old local state.
+        notifyJs("backupImportStarted", "null")
         val ok = safeLaunch("launchImportBackup") {
             importBackupLauncher.launch(arrayOf("application/json", "text/plain", "*/*"))
         }
-        if (!ok) toast("Import failed: no file picker available on this device", force = true)
+        if (!ok) {
+            notifyJs("backupImportCancelled", "null")
+            toast("Import failed: no file picker available on this device", force = true)
+        }
     }
 
     // ---------- Save current HTML (v4.11) ----------
@@ -1364,7 +1376,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     /** Collects every stored data key into the single backup JSON document. */
-    private fun buildBackupJson(): JSONObject {
+    private fun buildBackupJson(): JSONObject = synchronized(DataStoreLock.lock) {
+        // Held for the whole collection so a concurrent saveData() cannot produce a
+        // snapshot whose keys come from different moments (e.g. new state, old shadow).
         val map = linkedMapOf<String, String>()
         appDataDir.listFiles()?.filter { it.extension == "json" }?.forEach { f ->
             map[f.nameWithoutExtension] = f.readText()
@@ -1376,7 +1390,7 @@ class MainActivity : AppCompatActivity() {
         map.forEach { (key, value) -> data.put(key, value) }
         // v4.11: checksum lets import detect damaged/truncated files, and the
         // app id lets import reject files that belong to a different app.
-        return JSONObject()
+        JSONObject()
             .put("app", BackupValidator.APP_ID)
             .put("exportedAt", System.currentTimeMillis())
             .put("checksum", BackupValidator.fnv1a32(BackupValidator.checksumPayload(map)))
@@ -1403,27 +1417,21 @@ class MainActivity : AppCompatActivity() {
             // file. A corrupt, truncated or foreign JSON file is rejected with a
             // clear message and can never overwrite existing user data.
             val entries = BackupValidator.validate(text)
-            // Stage every file first, then swap them in - a write failure halfway
-            // can never leave a half-restored mixture behind.
-            val staging = File(filesDir, "data_import_tmp")
-            staging.deleteRecursively()
-            staging.mkdirs()
-            entries.forEach { (key, value) -> File(staging, "$key.json").writeText(value) }
-            for (key in entries.keys) {
-                val src = File(staging, "$key.json")
-                val dest = File(appDataDir, "$key.json")
-                if (!src.renameTo(dest)) {
-                    dest.writeText(src.readText())
-                    src.delete()
-                }
+            // Full snapshot swap with rollback: staged, verified, committed as one unit.
+            if (!BackupStore.replaceAll(appDataDir, entries)) {
+                throw IllegalStateException("the restored data could not be written completely")
             }
-            staging.deleteRecursively()
             toast("Backup restored", force = true)
-            // Tell the HTML app so it can re-read its data
+            // Only after the transaction committed: the HTML adopts this state and reloads.
             notifyJs("backupRestored", "null")
         } catch (e: Exception) {
             ErrorLog.log(this, "restoreBackupFrom", e.message ?: e.javaClass.simpleName)
             toast("Import failed: ${e.message}", force = true)
+            // Release the HTML mirror lock; nothing was changed.
+            notifyJs(
+                "backupImportFailed",
+                JSONObject().put("reason", e.message ?: "unknown").toString()
+            )
         }
     }
 

@@ -165,6 +165,39 @@ class BackupValidatorTest {
     }
 
     @Test
+    fun unsafeDataKeysAreRejectedBeforeAnyFileIsTouched() {
+        // Keys become file names, so traversal and unsupported characters must never
+        // reach the restore transaction.
+        listOf("../escape", "a/b", "key with space", "x".repeat(65), "dot.name").forEach { key ->
+            val doc = JSONObject()
+                .put("app", BackupValidator.APP_ID)
+                .put(
+                    "data",
+                    JSONObject()
+                        .put(BackupValidator.CORE_KEY, validInner())
+                        .put(key, "{}")
+                )
+                .toString()
+            expectReject(doc, "unsafe field name")
+        }
+    }
+
+    @Test
+    fun normalExtraKeysAreStillAccepted() {
+        val doc = JSONObject()
+            .put("app", BackupValidator.APP_ID)
+            .put(
+                "data",
+                JSONObject()
+                    .put(BackupValidator.CORE_KEY, validInner())
+                    .put("recall_state_shadow", validInner())
+            )
+            .toString()
+        val result = BackupValidator.validate(doc)
+        assertTrue(result.containsKey("recall_state_shadow"))
+    }
+
+    @Test
     fun fnv1aMatchesKnownValues() {
         // FNV-1a 32-bit of the empty string is the offset basis itself.
         assertEquals("811c9dc5", BackupValidator.fnv1a32(""))

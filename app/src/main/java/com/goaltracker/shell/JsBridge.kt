@@ -201,13 +201,16 @@ class JsBridge(private val activity: MainActivity) {
     @JavascriptInterface
     fun saveData(key: String, json: String): Boolean = safe("saveData", false) {
         // v4.11: temp-then-rename so a concurrent reader (backup export) can
-        // never observe a half-written file.
-        val dest = File(dataDir, safeKey(key) + ".json")
-        val tmp = File(dataDir, safeKey(key) + ".json.tmp")
-        tmp.writeText(json)
-        if (!tmp.renameTo(dest)) {
-            dest.writeText(json)
-            tmp.delete()
+        // never observe a half-written file. The shared monitor keeps a multi-key
+        // export snapshot consistent with the saves it interleaves with.
+        synchronized(DataStoreLock.lock) {
+            val dest = File(dataDir, safeKey(key) + ".json")
+            val tmp = File(dataDir, safeKey(key) + ".json.tmp")
+            tmp.writeText(json)
+            if (!tmp.renameTo(dest)) {
+                dest.writeText(json)
+                tmp.delete()
+            }
         }
         true
     }
@@ -221,7 +224,9 @@ class JsBridge(private val activity: MainActivity) {
 
     @JavascriptInterface
     fun deleteData(key: String): Boolean = safe("deleteData", false) {
-        File(dataDir, safeKey(key) + ".json").delete()
+        synchronized(DataStoreLock.lock) {
+            File(dataDir, safeKey(key) + ".json").delete()
+        }
     }
 
     /** Returns a JSON array of all stored keys, e.g. ["goals","settings"] */
