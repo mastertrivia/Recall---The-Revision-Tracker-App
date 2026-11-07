@@ -1,6 +1,6 @@
 'use strict';
 /**
- * Mechanism regression tests for the CURRENT Recall HTML (recall_latest_7_november .html).
+ * Mechanism regression tests for the CURRENT Recall HTML (Happy.html in the workspace root).
  *
  * The page is rendered by jsdom exactly as shipped (no extraction, no rewriting), so
  * every assertion runs against the real functions the app calls. Covers the data-path
@@ -13,7 +13,14 @@ const fs = require('fs');
 const path = require('path');
 const { JSDOM, VirtualConsole } = require('jsdom');
 
-const HTML_PATH = path.join(__dirname, '..', '..', 'recall_latest_7_november .html');
+// The app HTML lives outside this repository (it is installed separately), so point
+// RECALL_HTML at it, or keep Happy.html next to the repo folder. Missing file is a
+// skip, not a failure - CI has no HTML to test.
+const HTML_PATH = process.env.RECALL_HTML || path.join(__dirname, '..', '..', 'Happy.html');
+if (!fs.existsSync(HTML_PATH)) {
+  console.log(`SKIP: ${HTML_PATH} not found. Set RECALL_HTML to the app HTML file to run these checks.`);
+  process.exit(0);
+}
 const HTML = fs.readFileSync(HTML_PATH, 'utf8');
 
 const results = [];
