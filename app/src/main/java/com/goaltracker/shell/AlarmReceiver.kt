@@ -11,6 +11,11 @@ import android.content.Intent
  */
 class AlarmReceiver : BroadcastReceiver() {
 
+    private companion object {
+        /** Must match ALARM_DAILY in the HTML shell bridge. */
+        const val DAILY_ALARM_ID = 9101
+    }
+
     override fun onReceive(context: Context, intent: Intent) {
         val pending = goAsync()
         try {
@@ -24,11 +29,25 @@ class AlarmReceiver : BroadcastReceiver() {
                 intent.getLongExtra(AlarmContract.EXTRA_DURATION_MS, AlarmContract.DEFAULT_DURATION_MS)
             )
 
+            /* The daily reminder is the only alarm whose sentence is about "today".
+               The stored sentence is a snapshot from the last app open, so it used to
+               announce yesterday's counts when it fired after midnight. Recompute it
+               from the mirrored state at fire time and keep the stored text only as a
+               fallback for an unreadable/missing mirror. */
+            val freshText = if (id == DAILY_ALARM_ID) {
+                val summary = DailySummary.read(context)
+                when {
+                    summary == null -> text
+                    summary.topics > 0 -> summary.text()
+                    else -> "No revisions are due today."
+                }
+            } else text
+
             AlarmScheduler.markFired(context, id)
 
             if (!Flags.get(context, "alarmsEnabled")) return
 
-            AlarmPlaybackService.start(context, id, title, text, soundSlot, durationMs)
+            AlarmPlaybackService.start(context, id, title, freshText, soundSlot, durationMs)
         } catch (e: Exception) {
             ErrorLog.log(context, "AlarmReceiver", e.message ?: "unknown")
         } finally {
