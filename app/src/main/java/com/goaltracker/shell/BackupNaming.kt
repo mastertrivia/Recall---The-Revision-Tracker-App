@@ -13,7 +13,7 @@ import java.util.Locale
  * (the native layer owns file creation) and must be shared by:
  *   - the user-chosen export folder
  *   - the JSON `CreateDocument` picker
- *   - the generic `*/*` picker fallback
+ *   - the generic fallback picker (any MIME type)
  *   - the picker-free Downloads fallback
  *
  * Pure Kotlin so the format can be unit-tested without an Android device.

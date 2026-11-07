@@ -67,24 +67,26 @@ object DailySummary {
         )
     }
 
-    fun parse(json: String, today: String): Summary? = try {
-        val root = JSONObject(json)
-        val topics = root.optJSONArray("topics") ?: return null
-        val seen = HashSet<String>()
-        var count = 0
-        var minutes = 0
-        for (i in 0 until topics.length()) {
-            val topic = topics.optJSONObject(i) ?: continue
-            if (topic.optBoolean("blocked", false)) continue
-            if (!hasPendingDue(topic.optJSONArray("revisions"), today)) continue
-            val id = topic.optString("id")
-            if (id.isEmpty() || !seen.add(id)) continue
-            count++
-            minutes += topic.optInt("duration", 0).coerceAtLeast(0)
+    fun parse(json: String, today: String): Summary? {
+        return try {
+            val root = JSONObject(json)
+            val topics = root.optJSONArray("topics") ?: return null
+            val seen = HashSet<String>()
+            var count = 0
+            var minutes = 0
+            for (i in 0 until topics.length()) {
+                val topic = topics.optJSONObject(i) ?: continue
+                if (topic.optBoolean("blocked", false)) continue
+                if (!hasPendingDue(topic.optJSONArray("revisions"), today)) continue
+                val id = topic.optString("id")
+                if (id.isEmpty() || !seen.add(id)) continue
+                count++
+                minutes += topic.optInt("duration", 0).coerceAtLeast(0)
+            }
+            Summary(count, minutes)
+        } catch (e: Exception) {
+            null
         }
-        Summary(count, minutes)
-    } catch (e: Exception) {
-        null
     }
 
     private fun hasPendingDue(revisions: JSONArray?, today: String): Boolean {
